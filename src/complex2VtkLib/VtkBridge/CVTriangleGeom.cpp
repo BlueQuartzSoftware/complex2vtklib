@@ -28,6 +28,19 @@ void TriangleGeom::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfCells: " << GetNumberOfCells() << endl;
 }
 
+VTK_PTR(vtkDataSet) CV::TriangleGeom::CreateFromGeom(const std::shared_ptr<complex::TriangleGeom>& geom)
+{
+  if(geom == nullptr)
+  {
+    return nullptr;
+  }
+  VTK_NEW(CVTriangleGrid, dataSet);
+  auto* cvGeom = dataSet->GetImplementation();
+  cvGeom->SetGeometry(geom);
+
+  return dataSet;
+}
+
 TriangleGeom::TriangleGeom()
 : vtkObject()
 {

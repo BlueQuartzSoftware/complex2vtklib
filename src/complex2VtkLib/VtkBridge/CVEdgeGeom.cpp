@@ -27,6 +27,19 @@ void EdgeGeom::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfCells: " << GetNumberOfCells() << endl;
 }
 
+VTK_PTR(vtkDataSet) CV::EdgeGeom::CreateFromGeom(const std::shared_ptr<complex::EdgeGeom>& geom)
+{
+  if(geom == nullptr)
+  {
+    return nullptr;
+  }
+  VTK_NEW(CVEdgeGrid, dataSet);
+  EdgeGeom* edgeGeom = dataSet->GetImplementation();
+  edgeGeom->SetGeometry(geom);
+
+  return dataSet;
+}
+
 EdgeGeom::EdgeGeom()
 : vtkObject()
 {

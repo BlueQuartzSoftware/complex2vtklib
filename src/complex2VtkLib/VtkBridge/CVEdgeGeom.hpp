@@ -7,6 +7,7 @@
 
 #include "complex/DataStructure/Geometry/EdgeGeom.hpp"
 
+#include "complex2VtkLib/VtkBridge/VtkMacros.hpp"
 #include "complex2VtkLib/complex2VtkLib_export.hpp"
 
 namespace CV
@@ -21,6 +22,7 @@ namespace CV
 class COMPLEX2VTKLIB_EXPORT EdgeGeom : public vtkObject
 {
 public:
+  static VTK_PTR(vtkDataSet) CreateFromGeom(const std::shared_ptr<complex::EdgeGeom>& geom);
   static EdgeGeom* New();
   void PrintSelf(ostream& os, vtkIndent indent) override;
   vtkTypeMacro(EdgeGeom, vtkObject);

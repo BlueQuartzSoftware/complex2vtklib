@@ -27,6 +27,19 @@ void VertexGeom::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfCells: " << GetNumberOfCells() << endl;
 }
 
+VTK_PTR(vtkDataSet) CV::VertexGeom::CreateFromGeom(const std::shared_ptr<complex::VertexGeom>& geom)
+{
+  if(geom == nullptr)
+  {
+    return nullptr;
+  }
+  VTK_NEW(CVVertexGrid, dataSet);
+  auto* cvGeom = dataSet->GetImplementation();
+  cvGeom->SetGeometry(geom);
+
+  return dataSet;
+}
+
 VertexGeom::VertexGeom()
 : vtkObject()
 {

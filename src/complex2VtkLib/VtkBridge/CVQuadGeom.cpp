@@ -28,6 +28,19 @@ void QuadGeom::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfCells: " << GetNumberOfCells() << endl;
 }
 
+VTK_PTR(vtkDataSet) CV::QuadGeom::CreateFromGeom(const std::shared_ptr<complex::QuadGeom>& geom)
+{
+  if(geom == nullptr)
+  {
+    return nullptr;
+  }
+  VTK_NEW(CVQuadGrid, dataSet);
+  auto* cvGeom = dataSet->GetImplementation();
+  cvGeom->SetGeometry(geom);
+
+  return dataSet;
+}
+
 QuadGeom::QuadGeom()
 : vtkObject()
 {

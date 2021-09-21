@@ -27,6 +27,19 @@ void TetrahedralGeom::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfCells: " << GetNumberOfCells() << endl;
 }
 
+VTK_PTR(vtkDataSet) CV::TetrahedralGeom::CreateFromGeom(const std::shared_ptr<complex::TetrahedralGeom>& geom)
+{
+  if(geom == nullptr)
+  {
+    return nullptr;
+  }
+  VTK_NEW(CVTetrahedralGrid, dataSet);
+  auto* cvGeom = dataSet->GetImplementation();
+  cvGeom->SetGeometry(geom);
+
+  return dataSet;
+}
+
 TetrahedralGeom::TetrahedralGeom()
 : vtkObject()
 {
