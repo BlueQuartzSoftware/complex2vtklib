@@ -81,7 +81,7 @@ void VertexGeom::GetCellPoints(vtkIdType cellId, vtkIdList* ptIds)
 
 void VertexGeom::GetPointCells(vtkIdType ptId, vtkIdList* cellIds)
 {
-  int count = m_Geom->getVertices()->getTupleCount();
+  int count = m_Geom->getVertices()->getNumberOfTuples();
 
   for(int i = 0; i < count; i++)
   {

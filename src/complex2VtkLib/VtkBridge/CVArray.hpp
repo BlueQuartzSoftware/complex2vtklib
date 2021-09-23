@@ -132,8 +132,8 @@ public:
       return {};
     }
 
-    const auto numComps = m_DataArray->getNumComponents();
-    const auto tuplePos = numComps * tupleIdx;
+    const auto tupleSize = m_DataArray->getNumberOfTuples();
+    const auto tuplePos = tupleSize * tupleIdx;
     return m_DataArray->at(tuplePos + compIdx);
   }
 
@@ -150,8 +150,8 @@ public:
       return;
     }
 
-    const auto numComps = m_DataArray->getNumComponents();
-    const auto tuplePos = numComps * tupleIdx;
+    const auto tupleSize = m_DataArray->getNumberOfTuples();
+    const auto tuplePos = tupleSize * tupleIdx;
     (*m_DataArray)[tuplePos + compIdx] = value;
   }
 
@@ -168,7 +168,7 @@ public:
       return false;
     }
 
-    m_DataArray->getDataStore()->resizeTuples(numTuples);
+    m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
     return true;
   }
 
@@ -185,7 +185,7 @@ public:
       return false;
     }
 
-    m_DataArray->getDataStore()->resizeTuples(numTuples);
+    m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
     return true;
   }
 
