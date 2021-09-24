@@ -91,8 +91,8 @@ void EdgeGeom::GetPointCells(vtkIdType ptId, vtkIdList* cellIds)
   auto elementsContainingList = m_Geom->getElementsContainingVert();
   complex::DynamicListArray<uint16_t, size_t>::ElementList listArray = elementsContainingList->getElementList(ptId);
 
-  cellIds->SetNumberOfIds(listArray.ncells);
-  for(int i = 0; i < listArray.ncells; i++)
+  cellIds->SetNumberOfIds(listArray.numCells);
+  for(int i = 0; i < listArray.numCells; i++)
   {
     cellIds->SetId(i, listArray.cells[i]);
   }
