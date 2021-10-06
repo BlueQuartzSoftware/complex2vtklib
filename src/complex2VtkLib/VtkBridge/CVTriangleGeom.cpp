@@ -91,7 +91,7 @@ void TriangleGeom::GetCellPoints(vtkIdType cellId, vtkIdList* ptIds)
 void TriangleGeom::GetPointCells(vtkIdType ptId, vtkIdList* cellIds)
 {
   auto elementsContainingList = m_Geom->getElementsContainingVert();
-  complex::DynamicListArray<uint16_t, size_t>::ElementList listArray = elementsContainingList->getElementList(ptId);
+  complex::AbstractGeometry::ElementDynamicList::ElementList listArray = elementsContainingList->getElementList(ptId);
 
   cellIds->SetNumberOfIds(listArray.numCells);
   for(int i = 0; i < listArray.numCells; i++)

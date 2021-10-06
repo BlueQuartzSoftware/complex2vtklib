@@ -22,9 +22,9 @@ class COMPLEX2VTKLIB_EXPORT Array : public vtkGenericDataArray<Array<T>, T>
 public:
   using ComplexArrayPtr = std::shared_ptr<complex::DataArray<T>>;
   using ValueType = T;
-  using Superclass = typename vtkGenericDataArray<Array<T>, T>;
+  using Superclass2 = vtkGenericDataArray<Array<T>, T>;
 
-  vtkTypeMacro(Array, Superclass);
+  vtkTypeMacro(Array, Superclass2);
 
   Array(const ComplexArrayPtr& dataArr)
   : vtkGenericDataArray<Array<T>, T>()
@@ -37,6 +37,15 @@ public:
   }
 
   virtual ~Array() = default;
+
+  /**
+   * @brief
+   * @param name
+   */
+  void SetName(const char* name) override
+  {
+    this->m_DataArray->rename(name);
+  }
 
   /**
    * @brief Returns the value for the given ID.
