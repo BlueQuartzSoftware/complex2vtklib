@@ -90,7 +90,7 @@ public:
     }
 
     auto dataStore = m_DataArray->getDataStore();
-    const size_t numComps = dataStore->getNumComponents();
+    const size_t numComps = dataStore->getNumberOfComponents();
     const size_t tupleIndex = numComps * tupleIdx;
     for(size_t i = 0; i < numComps; i++)
     {
@@ -111,7 +111,7 @@ public:
     }
 
     auto dataStore = m_DataArray->getDataStore();
-    const size_t numComps = dataStore->getNumComponents();
+    const size_t numComps = dataStore->getNumberOfComponents();
     const size_t tupleIndex = numComps * tupleIdx;
     for(size_t i = 0; i < numComps; i++)
     {
