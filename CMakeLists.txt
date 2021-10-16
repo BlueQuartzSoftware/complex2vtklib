@@ -25,26 +25,24 @@ add_library(complex2VtkLib::complex2VtkLib ALIAS complex2VtkLib)
 # -------------------------------------------
 # Find VTK
 set(C2V_VtkComponents
+  CommonColor
+  CommonCore
+  CommonDataModel
+  CommonTransforms
   FiltersGeometry
-  FiltersModeling
   FiltersSources
-  # RenderingCore
+  ImagingSources
+  InteractionStyle
+  InteractionWidgets
+  RenderingAnnotation
+  RenderingContextOpenGL2
+  RenderingCore
   RenderingFreeType
-  # RenderingImage
-  # RenderingOpenGL2
-  # RenderingVolumeOpenGL2
-  # RenderingContextOpenGL2
-  # RenderingAnnotation
-  # InteractionWidgets
-  # InteractionStyle
-  IOLegacy
-  IOImage
-  IOGeometry
-  # ChartsCore
-  # ViewsContext2D
+  RenderingGL2PSOpenGL2
+  RenderingOpenGL2
   CACHE INTERNAL "VTK Components for complex2VtkLib" FORCE
 )
-find_package(VTK "9.0" COMPONENTS ${C2V_VtkComponents} CONFIG REQUIRED)
+find_package(VTK "9.1" COMPONENTS ${C2V_VtkComponents} CONFIG REQUIRED)
 AddVtkCopyInstallRules(LIBS ${C2V_VtkComponents})
 
 
@@ -149,4 +147,30 @@ target_link_libraries(complex2VtkLib
     complex::complex
     ${VTK_LIBRARIES}
 )
-vtk_module_autoinit(TARGETS complex2VtkLib MODULES ${VTK_LIBRARIES})
+
+
+#--------------------------------------------------------------------------------------------------
+#
+file(TO_CMAKE_PATH "${complex2VtkLib_SOURCE_DIR}" complex2VtkLib_SOURCE_DIR_NORM)
+file(TO_CMAKE_PATH "${complex2VtkLib_BINARY_DIR}" complex2VtkLib_BINARY_DIR_NORM)
+
+
+configure_file("${complex2VtkLib_SOURCE_DIR}/src/example/data_dirs.h.in"
+                ${complex2VtkLib_BINARY_DIR}/data_dirs.h
+                @ONLY)
+
+# include all components
+add_executable(BridgeTest MACOSX_BUNDLE
+    ${complex2VtkLib_SOURCE_DIR}/src/example/BridgeTest.cpp
+    ${complex2VtkLib_BINARY_DIR}/data_dirs.h
+  )
+target_link_libraries(BridgeTest PRIVATE ${VTK_LIBRARIES} complex2VtkLib)
+target_include_directories(BridgeTest PRIVATE ${complex2VtkLib_BINARY_DIR})
+# vtk_module_autoinit is needed
+vtk_module_autoinit(
+  TARGETS BridgeTest
+  MODULES ${VTK_LIBRARIES}
+)
+
+
+

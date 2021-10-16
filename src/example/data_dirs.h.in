@@ -1,0 +1,22 @@
+#pragma once
+
+#include "complex/Common/StringLiteral.hpp"
+
+namespace complex
+{
+namespace complex2vtk
+{
+
+constexpr StringLiteral k_SourceDir = "@complex2VtkLib_SOURCE_DIR_NORM@";
+constexpr StringLiteral k_BinaryDir = "@complex2VtkLib_BINARY_DIR_NORM@";
+constexpr StringLiteral k_DataDir = "@complex2VtkLib_SOURCE_DIR_NORM@/test_data/";
+
+#ifdef CMAKE_INTDIR
+constexpr StringLiteral k_BuildTypeDir = CMAKE_INTDIR;
+#else
+constexpr StringLiteral k_BuildTypeDir = "";
+#endif
+
+constexpr StringLiteral k_BuildDir = "@CMAKE_LIBRARY_OUTPUT_DIRECTORY@";
+}
+}

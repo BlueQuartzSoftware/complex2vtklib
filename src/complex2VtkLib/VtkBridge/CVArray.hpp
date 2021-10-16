@@ -34,6 +34,8 @@ public:
     {
       SetName(dataArr->getName().c_str());
     }
+    Superclass2::SetNumberOfTuples(m_DataArray->getNumberOfTuples());
+    Superclass2::SetNumberOfComponents(m_DataArray->getNumberOfComponents());
   }
 
   virtual ~Array() = default;
@@ -44,6 +46,7 @@ public:
    */
   void SetName(const char* name) override
   {
+    vtkGenericDataArray<Array<T>, T>::SetName(name);
     this->m_DataArray->rename(name);
   }
 
