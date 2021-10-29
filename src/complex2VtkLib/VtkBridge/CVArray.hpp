@@ -3,8 +3,10 @@
 #include <memory>
 
 #include "vtkGenericDataArray.h"
+#include "vtkSetGet.h"
 
 #include "complex/DataStructure/DataArray.hpp"
+#include "complex/DataStructure/DataStore.hpp"
 
 #include "complex2VtkLib/complex2VtkLib_export.hpp"
 
@@ -17,28 +19,52 @@ namespace CV
  * @tparam T
  */
 template <class T>
-class COMPLEX2VTKLIB_EXPORT Array : public vtkGenericDataArray<Array<T>, T>
+class Array : public vtkGenericDataArray<CV::Array<T>, T>
 {
 public:
   using ComplexArrayPtr = std::shared_ptr<complex::DataArray<T>>;
   using ValueType = T;
-  using Superclass2 = vtkGenericDataArray<Array<T>, T>;
+  using Superclass = vtkGenericDataArray<CV::Array<T>, T>;
 
-  vtkTypeMacro(Array, Superclass2);
+  vtkAbstractTypeMacro(CV::Array<T>, Superclass);
+
+  static inline const std::string MissingArrayName = "[Missing Array]";
+
+  static CV::Array<T>* New()
+  {
+    return new CV::Array<T>();
+  }
+
+  Array()
+  : Superclass()
+  , m_DataArray(nullptr)
+  {
+    SetComplexArray(nullptr);
+  }
 
   Array(const ComplexArrayPtr& dataArr)
-  : vtkGenericDataArray<Array<T>, T>()
+  : Superclass()
   , m_DataArray(dataArr)
   {
-    if(dataArr != nullptr)
-    {
-      SetName(dataArr->getName().c_str());
-    }
-    Superclass2::SetNumberOfTuples(m_DataArray->getNumberOfTuples());
-    Superclass2::SetNumberOfComponents(m_DataArray->getNumberOfComponents());
+    SetComplexArray(dataArr);
   }
 
   virtual ~Array() = default;
+
+  void SetComplexArray(const ComplexArrayPtr& dataArray)
+  {
+    m_DataArray = dataArray;
+    if(dataArray == nullptr)
+    {
+      SetName(MissingArrayName.c_str());
+    }
+    else
+    {
+      SetName(dataArray->getName().c_str());
+      Superclass::SetNumberOfComponents(m_DataArray->getNumberOfComponents());
+      Superclass::SetNumberOfTuples(m_DataArray->getNumberOfTuples());
+    }
+  }
 
   /**
    * @brief
@@ -46,8 +72,11 @@ public:
    */
   void SetName(const char* name) override
   {
-    vtkGenericDataArray<Array<T>, T>::SetName(name);
-    this->m_DataArray->rename(name);
+    Superclass::SetName(name);
+    if(m_DataArray != nullptr)
+    {
+      m_DataArray->rename(name);
+    }
   }
 
   /**
@@ -135,7 +164,8 @@ public:
       return {};
     }
 
-    const auto tupleSize = m_DataArray->getNumberOfTuples();
+    //m_DataArray->
+    const auto tupleSize = m_DataArray->getNumberOfComponents();
     const auto tuplePos = tupleSize * tupleIdx;
     return m_DataArray->at(tuplePos + compIdx);
   }
@@ -153,7 +183,7 @@ public:
       return;
     }
 
-    const auto tupleSize = m_DataArray->getNumberOfTuples();
+    const auto tupleSize = m_DataArray->getNumberOfComponents();
     const auto tuplePos = tupleSize * tupleIdx;
     (*m_DataArray)[tuplePos + compIdx] = value;
   }
@@ -171,7 +201,7 @@ public:
       return false;
     }
 
-    m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
+    //m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
     return true;
   }
 
@@ -188,8 +218,24 @@ public:
       return false;
     }
 
-    m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
+    //m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
     return true;
+  }
+
+  void* GetVoidPointer(vtkIdType valueIdx) override
+  {
+    auto dataStore = dynamic_cast<complex::DataStore<T>*>(m_DataArray->getDataStore());
+    if(nullptr == dataStore)
+    {
+      return nullptr;
+    }
+    return dataStore->data();
+  }
+
+protected:
+  vtkObjectBase* NewInstanceInternal() const override
+  {
+    return new Array(m_DataArray);
   }
 
 private:

@@ -1,54 +1,53 @@
 #include "complex2VtkLib/VtkBridge/VtkBridge.hpp"
 
 #include "complex/Common/Types.hpp"
-#include "complex/Filter/FilterHandle.hpp"
 #include "complex/DataStructure/DataArray.hpp"
 #include "complex/DataStructure/DataGroup.hpp"
+#include "complex/DataStructure/DataPath.hpp"
 #include "complex/DataStructure/DataStore.hpp"
 #include "complex/DataStructure/DataStructure.hpp"
-#include "complex/DataStructure/DataPath.hpp"
 #include "complex/DataStructure/Geometry/ImageGeom.hpp"
+#include "complex/Filter/FilterHandle.hpp"
 #include "complex/Utilities/Parsing/HDF5/H5FileReader.hpp"
 #include "complex/Utilities/Parsing/HDF5/H5FileWriter.hpp"
 
-#include <vtkDataSetToDataObjectFilter.h>
-#include <vtkDataSetMapper.h>
-#include <vtkCellData.h>
+#include "complex2VtkLib/VtkBridge/CVArray.hpp"
+#include "complex2VtkLib/VtkBridge/CVImageGeom.hpp"
+
 #include <vtkActor.h>
+#include <vtkAxesActor.h>
+#include <vtkCellData.h>
+#include <vtkDataSet.h>
+#include <vtkDataSetMapper.h>
+#include <vtkDataSetToDataObjectFilter.h>
 #include <vtkImageCanvasSource2D.h>
 #include <vtkImageData.h>
 #include <vtkImageDataGeometryFilter.h>
+#include <vtkInteractorStyleTrackballCamera.h>
+#include <vtkLookupTable.h>
 #include <vtkNamedColors.h>
 #include <vtkNew.h>
+#include <vtkOrientationMarkerWidget.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
-#include <vtkInteractorStyleTrackballCamera.h>
-#include <vtkDataSet.h>
-#include <vtkLookupTable.h>
-#include <vtkAxesActor.h>
 #include <vtkTransform.h>
-#include <vtkOrientationMarkerWidget.h>
-
-
 
 #include "data_dirs.h"
 
-#include <memory>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 
 namespace fs = std::filesystem;
 
 using namespace complex;
 
-
 template <typename T>
-DataArray<T>* ReadFromFile(const std::string& filename, const std::string& name, DataStructure* dataGraph,
-                           size_t numTuples, size_t numComponents, DataObject::IdType parentId = {})
+DataArray<T>* ReadFromFile(const std::string& filename, const std::string& name, DataStructure* dataGraph, size_t numTuples, size_t numComponents, DataObject::IdType parentId = {})
 {
   std::cout << "  Reading file " << filename << std::endl;
   using DataStoreType = DataStore<T>;
@@ -61,7 +60,7 @@ DataArray<T>* ReadFromFile(const std::string& filename, const std::string& name,
     return nullptr;
   }
 
-  DataStoreType* dataStore = new DataStoreType( {numTuples}, {numComponents});
+  DataStoreType* dataStore = new DataStoreType({numTuples}, {numComponents});
   ArrayType* dataArray = ArrayType::Create(*dataGraph, name, dataStore, parentId);
 
   const size_t fileSize = fs::file_size(filename);
@@ -127,22 +126,22 @@ std::shared_ptr<DataStructure> CreateDataStructure()
   size_t tupleSize = 1;
   size_t tupleCount = imageGeom->getNumberOfElements();
 
-  std::string filePath =  complex2vtk::k_DataDir.str();
+  std::string filePath = complex2vtk::k_DataDir.str();
 
   std::string fileName = "ConfidenceIndex.raw";
-  ReadFromFile<float>(filePath + fileName, "Confidence Index", dataGraph.get(), tupleCount, tupleSize, scanData->getId());
+  ReadFromFile<float>(filePath + fileName, "Confidence Index", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
 
   fileName = "FeatureIds.raw";
-  ReadFromFile<int32_t>(filePath + fileName, "FeatureIds", dataGraph.get(), tupleCount, tupleSize, scanData->getId());
+  ReadFromFile<int32_t>(filePath + fileName, "FeatureIds", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
 
   fileName = "ImageQuality.raw";
-  ReadFromFile<float>(filePath + fileName, "Image Quality", dataGraph.get(), tupleCount, tupleSize, scanData->getId());
+  ReadFromFile<float>(filePath + fileName, "Image Quality", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
 
   fileName = "IPFColors.raw";
-  ReadFromFile<uint8_t>(filePath + fileName, "IPF Colors", dataGraph.get(), tupleCount * 3, tupleSize, scanData->getId());
+  ReadFromFile<uint8_t>(filePath + fileName, "IPF Colors", dataGraph.get(), tupleCount * 3, tupleSize, imageGeom->getId());
 
   fileName = "Phases.raw";
-  ReadFromFile<int32_t>(filePath + fileName, "Phases", dataGraph.get(), tupleCount, tupleSize, scanData->getId());
+  ReadFromFile<int32_t>(filePath + fileName, "Phases", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
 
   // Add in another group that is just information about the grid data.
   DataGroup* phaseGroup = complex::DataGroup::Create(*dataGraph, "Phase Data", group->getId());
@@ -154,40 +153,38 @@ std::shared_ptr<DataStructure> CreateDataStructure()
   return dataGraph;
 }
 
-int main(int, char*[])
+VTK_PTR(vtkDataSet)
+WrapGeometryV1(const std::shared_ptr<DataStructure>& dataStructure, const DataPath& arrayPath, const DataPath& geomPath)
 {
-  std::shared_ptr<DataStructure> dataStructure = CreateDataStructure();
-
-  DataPath scanData_DataPath =  DataPath({"Small IN100", "EBSD Scan Data"});
-  DataPath featureIdsDataPath = DataPath({"Small IN100", "EBSD Scan Data", "FeatureIds"});
-  DataPath scanDataImageGeomDataPath = DataPath({"Small IN100", "EBSD Scan Data", "Small IN100 Grid"});
-
-  DataObject* featureIdsDataObject = dataStructure->getData(featureIdsDataPath);
-
-
-  std::shared_ptr<DataObject> dataArray = dataStructure->getSharedData(featureIdsDataObject->getId());
-  std::shared_ptr<complex::Int32Array> cInt32Array = std::dynamic_pointer_cast<complex::Int32Array>(dataArray);
-  DataStore<int32_t>* int32DataStore = dynamic_cast<Int32DataStore*>(cInt32Array->getDataStore());
-
-  vtkNew<vtkIntArray> vInt32Array;
-  vInt32Array->SetVoidArray(int32DataStore->data(), cInt32Array->getSize(), 1);
-  vInt32Array->SetNumberOfTuples(cInt32Array->getNumberOfTuples());
-  vInt32Array->SetNumberOfComponents(cInt32Array->getNumberOfComponents());
-  vInt32Array->SetName(cInt32Array->getName().c_str());
-
+  auto dataArrayObject = dataStructure->getSharedData(arrayPath);
+  auto vInt32Array = CV::VtkBridge::wrapDataArray(dataArrayObject);
 
   // Get Complex Image Geometry
-  ImageGeom* imageGeom = dataStructure->getDataAs<ImageGeom>(scanDataImageGeomDataPath);
-  SizeVec3 imageDims = imageGeom->getDimensions();
-  // Create VTK Image Data
-  vtkNew<vtkImageData> imageData;
-  imageData->SetDimensions(imageDims.getX() + 1, imageDims.getY() + 1, imageDims.getY() + 1);
-  // Get the vtkCellData Data from the vtkImageData object and add our wrapped Complex Data Array to the CellData
-  vtkCellData* cellData = imageData->GetCellData();
-  cellData->AddArray(vInt32Array);
-  // Set the Active Scalars for the vtkImageData
-  imageData->GetCellData()->SetActiveScalars(cInt32Array->getName().c_str());
+  auto absGeom = dataStructure->getSharedDataAs<AbstractGeometry>(geomPath);
+  auto dataset = CV::VtkBridge::wrapGeometry(absGeom);
 
+  // Get the vtkCellData Data from the vtkImageData object and add our wrapped Complex Data Array to the CellData
+  vtkCellData* cellData = dataset->GetCellData();
+  cellData->AddArray(vInt32Array);
+  // Set the Active Scalars for the vtkDataSet
+  cellData->SetActiveScalars(dataArrayObject->getName().c_str());
+
+  return dataset;
+}
+
+VTK_PTR(vtkDataSet)
+WrapGeometryV2(const std::shared_ptr<DataStructure>& dataStructure)
+{
+  auto wrappedGeoms = CV::VtkBridge::wrapDataStructure(*dataStructure.get());
+  if(wrappedGeoms.size() == 0)
+  {
+    return nullptr;
+  }
+  return wrappedGeoms.front();
+}
+
+void render(VTK_PTR(vtkDataSet) dataset)
+{
   // Create  GrayScale Color Table for the data
   vtkNew<vtkLookupTable> grayScaleLut;
   grayScaleLut->SetHueRange(0, 0);
@@ -207,7 +204,7 @@ int main(int, char*[])
   vtkNew<vtkDataSetMapper> dataSetMapper;
   dataSetMapper->SetLookupTable(rainbowBlueRedLut);
   dataSetMapper->SetScalarRange(1.0, 795.0);
-  dataSetMapper->SetInputData(imageData);
+  dataSetMapper->SetInputData(dataset);
   dataSetMapper->Update();
 
   // Create some named colors for the rendering background
@@ -215,7 +212,6 @@ int main(int, char*[])
   // Set the background color.
   std::array<unsigned char, 4> bkg{{51, 77, 102, 255}};
   colors->SetColor("BkgColor", bkg.data());
-
 
   vtkNew<vtkActor> actor;
   actor->SetMapper(dataSetMapper);
@@ -249,12 +245,25 @@ int main(int, char*[])
   widget->SetInteractor(renderWindowInteractor);
   widget->SetViewport(0.0, 0.0, 0.4, 0.4);
   widget->SetEnabled(1);
- // widget->InteractiveOn();
-
+  // widget->InteractiveOn();
 
   renderWindow->SetWindowName("ImageDataGeometryFilter");
   renderWindow->Render();
   renderWindowInteractor->Start();
+}
+
+int main(int, char*[])
+{
+  std::shared_ptr<DataStructure> dataStructure = CreateDataStructure();
+
+  DataPath scanData_DataPath = DataPath({"Small IN100", "EBSD Scan Data"});
+  DataPath featureIdsDataPath = DataPath({"Small IN100", "EBSD Scan Data", "Small IN100 Grid", "FeatureIds"});
+  DataPath scanDataImageGeomDataPath = DataPath({"Small IN100", "EBSD Scan Data", "Small IN100 Grid"});
+
+  auto imageData = WrapGeometryV1(dataStructure, featureIdsDataPath, scanDataImageGeomDataPath);
+  //auto imageData = WrapGeometryV2(dataStructure);
+
+  render(imageData);
 
   return EXIT_SUCCESS;
 }

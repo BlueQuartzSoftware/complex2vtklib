@@ -23,6 +23,33 @@ add_library(complex2VtkLib SHARED)
 add_library(complex2VtkLib::complex2VtkLib ALIAS complex2VtkLib)
 
 # -------------------------------------------
+# Set properties / compile options
+target_compile_features(complex2VtkLib
+  PUBLIC
+    cxx_std_17
+)
+
+set_target_properties(complex2VtkLib
+  PROPERTIES
+    DEBUG_POSTFIX "_d"
+)
+
+if(MSVC)
+  target_compile_options(complex2VtkLib
+    PRIVATE
+      /MP
+      # C4706: assignment within conditional expression
+      /we4706
+  )
+else()
+  target_compile_options(complex2VtkLib
+    PRIVATE
+      # Wparentheses: Warn if parentheses are omitted in certain contexts, such as when there is an assignment in a context where a truth value is expected, or when operators are nested whose precedence people often get confused about
+      -Werror=parentheses
+  )
+endif()
+
+# -------------------------------------------
 # Find VTK
 set(C2V_VtkComponents
   CommonColor
@@ -85,6 +112,7 @@ set(BRIDGE_DIR "${PROJECT_SOURCE_DIR}/src/complex2VtkLib/VtkBridge")
 set(BRIDGE_HDRS
   ${BRIDGE_DIR}/CVArray.hpp
   ${BRIDGE_DIR}/CVEdgeGeom.hpp
+  ${BRIDGE_DIR}/CVImageGeom.hpp
   ${BRIDGE_DIR}/CVQuadGeom.hpp
   ${BRIDGE_DIR}/CVTetrahedralGeom.hpp
   ${BRIDGE_DIR}/CVTriangleGeom.hpp
@@ -95,6 +123,7 @@ set(BRIDGE_HDRS
 
 set(BRIDGE_SRCS
   ${BRIDGE_DIR}/CVEdgeGeom.cpp
+  ${BRIDGE_DIR}/CVImageGeom.cpp
   ${BRIDGE_DIR}/CVQuadGeom.cpp
   ${BRIDGE_DIR}/CVTetrahedralGeom.cpp
   ${BRIDGE_DIR}/CVTriangleGeom.cpp
