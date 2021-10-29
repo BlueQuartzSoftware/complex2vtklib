@@ -24,9 +24,9 @@ class Array : public vtkGenericDataArray<CV::Array<T>, T>
 public:
   using ComplexArrayPtr = std::shared_ptr<complex::DataArray<T>>;
   using ValueType = T;
-  using Superclass = vtkGenericDataArray<CV::Array<T>, T>;
+  using Superclass2 = vtkGenericDataArray<CV::Array<T>, T>;
 
-  vtkAbstractTypeMacro(CV::Array<T>, Superclass);
+  vtkAbstractTypeMacro(CV::Array<T>, Superclass2);
 
   static inline const std::string MissingArrayName = "[Missing Array]";
 
