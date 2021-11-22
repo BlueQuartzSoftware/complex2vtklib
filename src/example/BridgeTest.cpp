@@ -56,7 +56,7 @@ DataArray<T>* ReadFromFile(const std::string& filename, const std::string& name,
     return nullptr;
   }
 
-  auto dataStore = new DataStoreType({numTuples}, {numComponents});
+  auto dataStore = std::shared_ptr<DataStoreType>(new DataStoreType({numTuples}, {numComponents}));
   ArrayType* dataArray = ArrayType::Create(*dataGraph, name, dataStore, parentId);
 
   const size_t fileSize = fs::file_size(filename);
@@ -143,7 +143,7 @@ std::shared_ptr<DataStructure> CreateDataStructure()
   DataGroup* phaseGroup = complex::DataGroup::Create(*dataGraph, "Phase Data", group->getId());
   tupleSize = 1;
   tupleCount = 2;
-  auto laueDataStore = new Int32DataStore({tupleSize}, {tupleCount});
+  auto laueDataStore = std::shared_ptr<Int32DataStore>( new Int32DataStore({tupleSize}, {tupleCount}));
   Int32Array::Create(*dataGraph, "Laue Class", laueDataStore, phaseGroup->getId());
 
   return dataGraph;
