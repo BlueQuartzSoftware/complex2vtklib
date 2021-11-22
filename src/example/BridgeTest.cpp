@@ -11,16 +11,12 @@
 #include "complex/Utilities/Parsing/HDF5/H5FileReader.hpp"
 #include "complex/Utilities/Parsing/HDF5/H5FileWriter.hpp"
 
-#include "complex2VtkLib/VtkBridge/CVArray.hpp"
-#include "complex2VtkLib/VtkBridge/CVImageGeom.hpp"
 
 #include <vtkActor.h>
 #include <vtkAxesActor.h>
 #include <vtkCellData.h>
 #include <vtkDataSet.h>
 #include <vtkDataSetMapper.h>
-#include <vtkDataSetToDataObjectFilter.h>
-#include <vtkImageCanvasSource2D.h>
 #include <vtkImageData.h>
 #include <vtkImageDataGeometryFilter.h>
 #include <vtkInteractorStyleTrackballCamera.h>
@@ -60,7 +56,7 @@ DataArray<T>* ReadFromFile(const std::string& filename, const std::string& name,
     return nullptr;
   }
 
-  DataStoreType* dataStore = new DataStoreType({numTuples}, {numComponents});
+  auto dataStore = new DataStoreType({numTuples}, {numComponents});
   ArrayType* dataArray = ArrayType::Create(*dataGraph, name, dataStore, parentId);
 
   const size_t fileSize = fs::file_size(filename);
@@ -115,8 +111,8 @@ std::shared_ptr<DataStructure> CreateDataStructure()
 
   // Create an Image Geometry grid for the Scan Data
   ImageGeom* imageGeom = ImageGeom::Create(*dataGraph, "Small IN100 Grid", scanData->getId());
-  imageGeom->setSpacing({0.25f, 0.25f, 0.25f});
-  imageGeom->setOrigin({0.0f, 0.0f, 0.0f});
+  imageGeom->setSpacing({0.25F, 0.25F, 0.25F});
+  imageGeom->setOrigin({0.0F, 0.0F, 0.0F});
   complex::SizeVec3 imageGeomDims = {100, 100, 100};
   imageGeom->setDimensions(imageGeomDims); // Listed from slowest to fastest (Z, Y, X)
 
@@ -147,7 +143,7 @@ std::shared_ptr<DataStructure> CreateDataStructure()
   DataGroup* phaseGroup = complex::DataGroup::Create(*dataGraph, "Phase Data", group->getId());
   tupleSize = 1;
   tupleCount = 2;
-  Int32DataStore* laueDataStore = new Int32DataStore({tupleSize}, {tupleCount});
+  auto laueDataStore = new Int32DataStore({tupleSize}, {tupleCount});
   Int32Array::Create(*dataGraph, "Laue Class", laueDataStore, phaseGroup->getId());
 
   return dataGraph;
@@ -175,7 +171,7 @@ WrapGeometryV1(const std::shared_ptr<DataStructure>& dataStructure, const DataPa
 VTK_PTR(vtkDataSet)
 WrapGeometryV2(const std::shared_ptr<DataStructure>& dataStructure)
 {
-  auto wrappedGeoms = CV::VtkBridge::wrapDataStructure(*dataStructure.get());
+  auto wrappedGeoms = CV::VtkBridge::wrapDataStructure(*dataStructure);
   if(wrappedGeoms.size() == 0)
   {
     return nullptr;
@@ -252,7 +248,7 @@ void render(VTK_PTR(vtkDataSet) dataset)
   renderWindowInteractor->Start();
 }
 
-int main(int, char*[])
+int main(int argc, char* argv[])
 {
   std::shared_ptr<DataStructure> dataStructure = CreateDataStructure();
 
