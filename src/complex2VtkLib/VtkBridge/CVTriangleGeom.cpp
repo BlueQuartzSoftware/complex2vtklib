@@ -79,7 +79,7 @@ void TriangleGeom::GetCellPoints(vtkIdType cellId, vtkIdList* ptIds)
   const int numVerts = 3;
 
   size_t verts[numVerts];
-  m_Geom->getVertsAtTri(cellId, verts);
+  m_Geom->getVertexIdsForFace(cellId, verts);
 
   ptIds->SetNumberOfIds(numVerts);
   for(int i = 0; i < numVerts; i++)
