@@ -78,7 +78,7 @@ void QuadGeom::GetCellPoints(vtkIdType cellId, vtkIdList* ptIds)
   const int numVerts = 4;
 
   size_t verts[numVerts];
-  m_Geom->getVertsAtQuad(cellId, verts);
+  m_Geom->getVertexIdsForFace(cellId, verts);
 
   ptIds->SetNumberOfIds(numVerts);
   for(int i = 0; i < numVerts; i++)
