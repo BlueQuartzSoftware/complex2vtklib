@@ -49,5 +49,5 @@ void ImageGeom::SetGeometry(const std::shared_ptr<complex::ImageGeom>& imageGeom
   }
 
   complex::SizeVec3 imageDims = imageGeom->getDimensions();
-  SetDimensions(imageDims.getX() + 1, imageDims.getY() + 1, imageDims.getY() + 1);
+  SetDimensions(imageDims.getX() + 1, imageDims.getY() + 1, imageDims.getZ() + 1);
 }
