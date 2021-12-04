@@ -193,7 +193,7 @@ add_executable(BridgeTest MACOSX_BUNDLE
     ${complex2VtkLib_SOURCE_DIR}/src/example/BridgeTest.cpp
     ${complex2VtkLib_BINARY_DIR}/data_dirs.h
   )
-target_link_libraries(BridgeTest PRIVATE ${VTK_LIBRARIES} complex2VtkLib)
+target_link_libraries(BridgeTest PRIVATE ${VTK_LIBRARIES} complex2VtkLib ComplexCore)
 target_include_directories(BridgeTest PRIVATE ${complex2VtkLib_BINARY_DIR})
 # vtk_module_autoinit is needed
 vtk_module_autoinit(
@@ -201,5 +201,19 @@ vtk_module_autoinit(
   MODULES ${VTK_LIBRARIES}
 )
 
+
+# include all components
+add_executable(VtkDemo MACOSX_BUNDLE
+  ${complex2VtkLib_SOURCE_DIR}/src/example/VtkDemo.cpp
+  ${complex2VtkLib_SOURCE_DIR}/src/example/Utilities.hpp
+  ${complex2VtkLib_BINARY_DIR}/data_dirs.h
+  )
+target_link_libraries(VtkDemo PRIVATE ${VTK_LIBRARIES} complex2VtkLib ComplexCore)
+target_include_directories(VtkDemo PRIVATE ${complex2VtkLib_BINARY_DIR})
+# vtk_module_autoinit is needed
+vtk_module_autoinit(
+  TARGETS VtkDemo
+  MODULES ${VTK_LIBRARIES}
+)
 
 

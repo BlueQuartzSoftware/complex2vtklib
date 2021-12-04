@@ -5,6 +5,9 @@
 #include "complex/DataStructure/Geometry/AbstractGeometry.hpp"
 #include "complex/DataStructure/DataArray.hpp"
 #include "complex/DataStructure/Geometry/ImageGeom.hpp"
+#include "complex/DataStructure/Geometry/LinkedGeometryData.hpp"
+
+
 
 #include "complex2VtkLib/VtkBridge/CVArray.hpp"
 #include "complex2VtkLib/VtkBridge/CVEdgeGeom.hpp"
@@ -180,14 +183,16 @@ VTK_PTR(vtkDataSet) CV::VtkBridge::wrapGeometry(const std::shared_ptr<complex::A
 
 VTK_PTR(vtkDataSet) CV::VtkBridge::wrapGeometryWithArrays(const std::shared_ptr<complex::AbstractGeometry>& geom)
 {
-  auto wrappedGeom = wrapGeometry(geom);
-  const auto geomTupleCount = geom->getNumberOfElements();
-  const auto dataStructure = geom->getDataStructure();
-  auto dataArrayIds = findDataArrays(geom);
+  vtkSmartPointer<vtkDataSet> wrappedGeom = wrapGeometry(geom);
+  const size_t geomTupleCount = geom->getNumberOfElements();
+  const complex::DataStructure* dataStructure = geom->getDataStructure();
 
-  for(const auto& id : dataArrayIds)
+  complex::LinkedGeometryData& geomData = geom->getLinkedGeometryData();
+  std::set<complex::DataPath> dataPaths = geomData.getCellDataPaths();
+  for(const auto& dataPath : dataPaths)
   {
-    auto wrappedArray = wrapDataArray(*dataStructure, id);
+    complex::DataObject::IdType objectId = dataStructure->getId(dataPath).value();
+    vtkDataArray* wrappedArray = wrapDataArray(*dataStructure, objectId);
     if(wrappedArray == nullptr)
     {
       continue;

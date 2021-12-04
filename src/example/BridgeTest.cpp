@@ -1,4 +1,6 @@
 #include "complex2VtkLib/VtkBridge/VtkBridge.hpp"
+#include "Utilities.hpp"
+
 
 #include "complex/Common/Types.hpp"
 #include "complex/DataStructure/DataArray.hpp"
@@ -42,112 +44,6 @@ namespace fs = std::filesystem;
 
 using namespace complex;
 
-template <typename T>
-DataArray<T>* ReadFromFile(const std::string& filename, const std::string& name, DataStructure* dataGraph, size_t numTuples, size_t numComponents, DataObject::IdType parentId = {})
-{
-  std::cout << "  Reading file " << filename << std::endl;
-  using DataStoreType = DataStore<T>;
-  using ArrayType = DataArray<T>;
-  constexpr size_t defaultBlocksize = 1048576;
-
-  if(!fs::exists(filename))
-  {
-    std::cout << "File Does Not Exist:'" << filename << "'" << std::endl;
-    return nullptr;
-  }
-
-  auto dataStore = std::shared_ptr<DataStoreType>(new DataStoreType({numTuples}, {numComponents}));
-  ArrayType* dataArray = ArrayType::Create(*dataGraph, name, dataStore, parentId);
-
-  const size_t fileSize = fs::file_size(filename);
-  const size_t numBytesToRead = dataArray->getSize() * sizeof(T);
-  if(numBytesToRead != fileSize)
-  {
-    std::cout << "FileSize and Allocated Size do not match" << std::endl;
-    return nullptr;
-  }
-
-  FILE* f = std::fopen(filename.c_str(), "rb");
-  if(f == nullptr)
-  {
-    return nullptr;
-  }
-
-  std::byte* chunkptr = reinterpret_cast<std::byte*>(dataStore->data());
-
-  // Now start reading the data in chunks if needed.
-  size_t chunkSize = std::min(numBytesToRead, defaultBlocksize);
-
-  size_t masterCounter = 0;
-  while(masterCounter < numBytesToRead)
-  {
-    size_t bytesRead = std::fread(chunkptr, sizeof(std::byte), chunkSize, f);
-    chunkptr += bytesRead;
-    masterCounter += bytesRead;
-
-    size_t bytesLeft = numBytesToRead - masterCounter;
-
-    if(bytesLeft < chunkSize)
-    {
-      chunkSize = bytesLeft;
-    }
-  }
-
-  fclose(f);
-
-  return dataArray;
-}
-
-std::shared_ptr<DataStructure> CreateDataStructure()
-{
-  std::shared_ptr<DataStructure> dataGraph = std::shared_ptr<DataStructure>(new DataStructure);
-
-  dataGraph->makePath(DataPath::FromString("1/2/3/4/5").value());
-
-  DataGroup* group = complex::DataGroup::Create(*dataGraph, "Small IN100");
-  DataGroup* scanData = complex::DataGroup::Create(*dataGraph, "EBSD Scan Data", group->getId());
-
-  dataGraph->makePath(DataPath::FromString("Small IN100/EBSD Scan Data").value());
-
-  // Create an Image Geometry grid for the Scan Data
-  ImageGeom* imageGeom = ImageGeom::Create(*dataGraph, "Small IN100 Grid", scanData->getId());
-  imageGeom->setSpacing({0.25F, 0.25F, 0.25F});
-  imageGeom->setOrigin({0.0F, 0.0F, 0.0F});
-  complex::SizeVec3 imageGeomDims = {100, 100, 100};
-  imageGeom->setDimensions(imageGeomDims); // Listed from slowest to fastest (Z, Y, X)
-
-  std::cout << "Creating Data Structure" << std::endl;
-  // Create some DataArrays; The DataStructure keeps a shared_ptr<> to the DataArray so DO NOT put
-  // it into another shared_ptr<>
-  size_t tupleSize = 1;
-  size_t tupleCount = imageGeom->getNumberOfElements();
-
-  std::string filePath = complex2vtk::k_DataDir.str();
-
-  std::string fileName = "ConfidenceIndex.raw";
-  ReadFromFile<float>(filePath + fileName, "Confidence Index", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
-
-  fileName = "FeatureIds.raw";
-  ReadFromFile<int32_t>(filePath + fileName, "FeatureIds", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
-
-  fileName = "ImageQuality.raw";
-  ReadFromFile<float>(filePath + fileName, "Image Quality", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
-
-  fileName = "IPFColors.raw";
-  ReadFromFile<uint8_t>(filePath + fileName, "IPF Colors", dataGraph.get(), tupleCount * 3, tupleSize, imageGeom->getId());
-
-  fileName = "Phases.raw";
-  ReadFromFile<int32_t>(filePath + fileName, "Phases", dataGraph.get(), tupleCount, tupleSize, imageGeom->getId());
-
-  // Add in another group that is just information about the grid data.
-  DataGroup* phaseGroup = complex::DataGroup::Create(*dataGraph, "Phase Data", group->getId());
-  tupleSize = 1;
-  tupleCount = 2;
-  auto laueDataStore = std::shared_ptr<Int32DataStore>( new Int32DataStore({tupleSize}, {tupleCount}));
-  Int32Array::Create(*dataGraph, "Laue Class", laueDataStore, phaseGroup->getId());
-
-  return dataGraph;
-}
 
 VTK_PTR(vtkDataSet)
 WrapGeometryV1(const std::shared_ptr<DataStructure>& dataStructure, const DataPath& arrayPath, const DataPath& geomPath)
@@ -250,12 +146,19 @@ void render(VTK_PTR(vtkDataSet) dataset)
 
 int main(int argc, char* argv[])
 {
-  std::shared_ptr<DataStructure> dataStructure = CreateDataStructure();
+  std::shared_ptr<DataStructure> dataStructure = std::shared_ptr<DataStructure>(new DataStructure);
 
-  DataPath scanData_DataPath = DataPath({"Small IN100", "EBSD Scan Data"});
-  DataPath featureIdsDataPath = DataPath({"Small IN100", "EBSD Scan Data", "Small IN100 Grid", "FeatureIds"});
-  DataPath scanDataImageGeomDataPath = DataPath({"Small IN100", "EBSD Scan Data", "Small IN100 Grid"});
+  CreateEbsdTestDataStructure(dataStructure);
 
+  DataPath smallIN100_DataPath = DataPath({k_SmallIN100});
+  DataPath scanDataPath = smallIN100_DataPath.createChildPath(k_EbsdScanData);
+  DataPath confidenceIndexDataPath = scanDataPath.createChildPath(k_ConfidenceIndex);
+  DataPath featureIdsDataPath = scanDataPath.createChildPath(k_FeatureIds);
+  DataPath imageQualityDataPath = scanDataPath.createChildPath(k_ImageQuality);
+  DataPath phaseDataPath = scanDataPath.createChildPath(k_Phases);
+  DataPath ipfColorsDataPath = scanDataPath.createChildPath(k_IpfColors);
+
+  DataPath scanDataImageGeomDataPath =scanDataPath.createChildPath(k_SmallIn100ImageGeom);
   auto imageData = WrapGeometryV1(dataStructure, featureIdsDataPath, scanDataImageGeomDataPath);
   //auto imageData = WrapGeometryV2(dataStructure);
 

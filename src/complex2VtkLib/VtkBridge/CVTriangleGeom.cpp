@@ -49,8 +49,8 @@ TriangleGeom::TriangleGeom()
 void TriangleGeom::SetGeometry(const std::shared_ptr<complex::TriangleGeom>& geom)
 {
   m_Geom = geom;
-  geom->findElementsContainingVert();
-  geom->findElementSizes();
+//  geom->findElementsContainingVert();
+//  geom->findElementSizes();
 }
 
 vtkIdType TriangleGeom::GetNumberOfCells()
@@ -61,7 +61,7 @@ vtkIdType TriangleGeom::GetNumberOfCells()
     return -1;
   }
 
-  return m_Geom->getNumberOfElements();
+  return m_Geom->getNumberOfFaces();
 }
 
 int TriangleGeom::GetCellType(vtkIdType cellId)
