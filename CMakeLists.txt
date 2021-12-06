@@ -67,6 +67,7 @@ set(C2V_VtkComponents
   RenderingFreeType
   RenderingGL2PSOpenGL2
   RenderingOpenGL2
+  IOLegacy
   CACHE INTERNAL "VTK Components for complex2VtkLib" FORCE
 )
 find_package(VTK "9.1" COMPONENTS ${C2V_VtkComponents} CONFIG REQUIRED)

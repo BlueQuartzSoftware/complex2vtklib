@@ -93,10 +93,10 @@ void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure)
  *
  * @return
  */
-void CreateEbsdTestDataStructure(std::shared_ptr<DataStructure>& dataGraph)
+void CreateEbsdTestDataStructure(std::shared_ptr<DataStructure>& dataGraph, StringLiteral topLevel = complex::Constants::k_SmallIN100)
 {
 
-  DataGroup* group = complex::DataGroup::Create(*dataGraph, complex::Constants::k_SmallIN100);
+  DataGroup* group = complex::DataGroup::Create(*dataGraph, topLevel);
   DataGroup* scanData = complex::DataGroup::Create(*dataGraph, complex::Constants::k_EbsdScanData, group->getId());
 
   // Create an Image Geometry grid for the Scan Data

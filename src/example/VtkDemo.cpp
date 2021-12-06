@@ -1,6 +1,6 @@
 
 
-
+#include "complex2VtkLib/VtkBridge/CVArray.hpp"
 
 #include "Utilities.hpp"
 
@@ -19,6 +19,11 @@
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkConeSource.h>
+#include <vtkImageData.h>
+#include <vtkProperty.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkLongArray.h>
+
 
 
 #include <iostream>
@@ -38,7 +43,8 @@ struct NXVtkRenderViewObjects
 
 struct NXVtkRenderProperties
 {
-  vtkSmartPointer<vtkDataSet>                 dataset;
+  std::shared_ptr<complex::DataObject>        complexGeometry;
+  vtkSmartPointer<vtkDataSet>                 dataSet;
   vtkSmartPointer<vtkAlgorithm>               algorithm;
   vtkSmartPointer<vtkMapper>                  mapper;
   vtkSmartPointer<vtkActor>                   actor;
@@ -53,8 +59,8 @@ using NXVtkRenderPropertiesPtr = std::shared_ptr<NXVtkRenderProperties>;
 class NXVtkRenderView
 {
 public:
-  NXVtkRenderView(std::shared_ptr<DataStructure>& dataStructure):
-  m_DataStructure(dataStructure)
+  NXVtkRenderView(std::shared_ptr<DataStructure>& dataStructure)
+  : m_DataStructure(dataStructure)
   {}
   ~NXVtkRenderView() = default;
 
@@ -98,10 +104,10 @@ public:
 
   void addGeometry(const DataPath& geometryPath)
   {
-    std::shared_ptr<complex::DataObject> dataObject = m_DataStructure->getSharedDataAs<complex::DataObject>(geometryPath);
-    if(dataObject != nullptr)
+    std::shared_ptr<complex::DataObject> dataObjectShrdPtr = m_DataStructure->getSharedDataAs<complex::DataObject>(geometryPath);
+    if(dataObjectShrdPtr != nullptr)
     {
-      complex::DataObject::DataObjectType dataObjectType = dataObject->getDataObjectType();
+      complex::DataObject::DataObjectType dataObjectType = dataObjectShrdPtr->getDataObjectType();
       switch(dataObjectType)
       {
       case complex::DataObject::DataObjectType::ImageGeom:
@@ -138,7 +144,7 @@ public:
       case DataObject::DataObjectType::QuadGeom:
         break;
       case DataObject::DataObjectType::TriangleGeom:
-        addAbstractGeometry2D<complex::TriangleGeom>(dataObject);
+        addAbstractGeometry2D<complex::TriangleGeom>(dataObjectShrdPtr);
         break;
       case DataObject::DataObjectType::AbstractGeometry3D:
         break;
@@ -153,14 +159,34 @@ public:
   }
 
   template <typename AbstractGeometry2DType>
-  void addAbstractGeometry2D(std::shared_ptr<DataObject>& dataObject)
+  void addAbstractGeometry2D(std::shared_ptr<DataObject>& complexDataObject)
   {
-    std::shared_ptr<complex::AbstractGeometry> abstractGeometry = std::dynamic_pointer_cast<complex::AbstractGeometry>(dataObject);
-    std::shared_ptr<AbstractGeometry2DType> complexNodeGeometry2D = std::dynamic_pointer_cast<AbstractGeometry2DType>(dataObject);
+    std::shared_ptr<AbstractGeometry2DType> complexNodeGeometry2D = std::dynamic_pointer_cast<AbstractGeometry2DType>(complexDataObject);
     const complex::DataStructure* dataStructure = complexNodeGeometry2D->getDataStructure();
 
+    // ******************* This section wraps the existing vertices into a vtkPolyObject
+    using CVFloatArray = CV::Array<float>;
+    std::shared_ptr<complex::Float32Array> vertDataArray = m_DataStructure->getSharedDataAs<complex::Float32Array>(complexNodeGeometry2D->getVertListId());
+    vtkDataArray* complexVertData = CV::VtkBridge::wrapDataArray(vertDataArray);
+    vtkNew<vtkPoints> complexPoints;
+    complexPoints->SetData(complexVertData);
+    vtkNew<vtkPointSet> complexPointSet;
+    complexPointSet->SetPoints(complexPoints);
+    vtkNew<vtkPolyData> polyData;
+    polyData->SetPoints(complexPoints);
+
+
+    std::shared_ptr<complex::UInt64Array> complexFaceConnectivity = m_DataStructure->getSharedDataAs<complex::UInt64Array>(complexNodeGeometry2D->getTriangleArrayId());
+    complex::UInt64DataStore* dataStore = complexFaceConnectivity->template getIDataStoreAs<DataStore<uint64_t>>();
+
+    vtkNew<vtkLongArray> faceConnectivity;
+    faceConnectivity->SetArray(reinterpret_cast<long*>(dataStore->data()), complexFaceConnectivity->getSize(), 1);
+
+    vtkNew<vtkCellArray> complexCellArray;
+    complexCellArray->SetData(3, faceConnectivity);
+    polyData->SetPolys(complexCellArray);
+
     // Convert the complex Geometry Object to a Wrapped Vtk Object (vtkDataSet)
-    vtkSmartPointer<vtkDataSet> wrappedVtkDataset = CV::VtkBridge::wrapGeometry(abstractGeometry);
     const size_t vertCount = complexNodeGeometry2D->getNumberOfVertices();
     const size_t faceCount = complexNodeGeometry2D->getNumberOfFaces();
 
@@ -181,7 +207,7 @@ public:
         continue;
       }
 
-      vtkPointData* pointData = wrappedVtkDataset->GetPointData();
+      vtkPointData* pointData = polyData->GetPointData();
       pointData->AddArray(wrappedArray);
       pointData->SetActiveScalars(wrappedArray->GetName());
     }
@@ -190,18 +216,19 @@ public:
     dataPaths = complexVertexData.getFaceDataPaths();
     for(const auto& dataPath : dataPaths)
     {
+
       complex::DataObject::IdType objectId = dataStructure->getId(dataPath).value();
       vtkDataArray* wrappedArray = CV::VtkBridge::wrapDataArray(*dataStructure, objectId);
       if(wrappedArray == nullptr)
       {
         continue;
       }
-      if(vertCount != wrappedArray->GetNumberOfTuples())
+      if(faceCount != wrappedArray->GetNumberOfTuples())
       {
         continue;
       }
 
-      vtkCellData* cellData = wrappedVtkDataset->GetCellData();
+      vtkCellData* cellData = polyData->GetCellData();
       cellData->AddArray(wrappedArray);
       cellData->SetActiveScalars(wrappedArray->GetName());
     }
@@ -209,7 +236,8 @@ public:
     //**************************************************************************
     // Hook up all the vtk objects that are needed to render the vtkDataSet in 3D
     NXVtkRenderPropertiesPtr renderProperties = std::make_shared<NXVtkRenderProperties>();
-    renderProperties->dataset = wrappedVtkDataset;
+    renderProperties->complexGeometry = complexDataObject;
+    renderProperties->dataSet = polyData;
 
     // Create a Rainbow Color Table for the data
     // This color table would ideally be created by a user through a GUI.
@@ -228,14 +256,23 @@ public:
     renderProperties->mapper = mapper;
     mapper->SetLookupTable(renderProperties->cellColors);
     mapper->SetScalarRange(0.0, 1.0);
-    mapper->SetInputData(vtkPolyData::SafeDownCast(wrappedVtkDataset));
+    mapper->SetInputData(vtkPolyData::SafeDownCast(polyData));
     mapper->Update();
 
     // Create the vtkActor that will represent the complex Geometry
     renderProperties->actor = vtkNew<vtkActor>();
     renderProperties->actor->SetMapper(renderProperties->mapper);
+    renderProperties->actor->GetProperty()->SetPointSize(20.0F);
     m_NxVtkRenderObjects.renderer->AddActor(renderProperties->actor);
     m_RenderProperties.push_back(renderProperties);
+#if 1
+    vtkNew<vtkPolyDataWriter> polyDataWriter;
+    polyDataWriter->SetFileName("/tmp/polydata.vtk");
+    polyDataWriter->SetFileTypeToASCII();
+    polyDataWriter->SetInputData(polyData);
+    polyDataWriter->Write();
+
+#endif
 
     /*
     complex::Point3Dd pCenter = complexNodeGeometry2D->getParametricCenter();
@@ -258,10 +295,17 @@ public:
   void addImageGeometry(const std::shared_ptr<complex::ImageGeom>& complexImageGeom)
   {
     // Convert the complex Geometry Object to a Wrapped Vtk Object (vtkDataSet)
-    vtkSmartPointer<vtkDataSet> wrappedVtkDataset = CV::VtkBridge::wrapGeometry(complexImageGeom);
-    const size_t geomTupleCount = complexImageGeom->getNumberOfElements();
-    const complex::DataStructure* dataStructure = complexImageGeom->getDataStructure();
+    SizeVec3 igDims = complexImageGeom->getDimensions();
+    FloatVec3 igOrigin = complexImageGeom->getOrigin();
+    FloatVec3 igSpacing = complexImageGeom->getSpacing();
 
+    vtkNew<vtkImageData> wrappedVtkDataset;
+    wrappedVtkDataset->SetDimensions(igDims[0] + 1, igDims[1] + 1, igDims[2] + 1);
+    wrappedVtkDataset->SetOrigin(igOrigin[0], igOrigin[1], igOrigin[2]);
+    wrappedVtkDataset->SetSpacing(igSpacing[0], igSpacing[1], igSpacing[2]);
+
+    const complex::DataStructure* dataStructure = complexImageGeom->getDataStructure();
+    const size_t geomTupleCount = complexImageGeom->getNumberOfElements();
     complex::LinkedGeometryData& complexCellData = complexImageGeom->getLinkedGeometryData();
     std::set<complex::DataPath> dataPaths = complexCellData.getCellDataPaths();
     for(const auto& dataPath : dataPaths)
@@ -285,7 +329,8 @@ public:
     //**************************************************************************
     // Hook up all the vtk objects that are needed to render the vtkDataSet in 3D
     NXVtkRenderPropertiesPtr renderProperties = std::make_shared<NXVtkRenderProperties>();
-    renderProperties->dataset = wrappedVtkDataset;
+    renderProperties->dataSet = wrappedVtkDataset;
+    renderProperties->complexGeometry = complexImageGeom;
 
     // Create a Rainbow Color Table for the data
     // This color table would ideally be created by a user through a GUI.
@@ -328,7 +373,7 @@ public:
   void setActiveScalars(size_t activeGeometryIndex, const DataPath& dataPath)
   {
     NXVtkRenderPropertiesPtr renderProperties = m_RenderProperties[activeGeometryIndex];
-    vtkCellData* cellData = renderProperties->dataset->GetCellData();
+    vtkCellData* cellData = renderProperties->dataSet->GetCellData();
     int result = cellData->SetActiveScalars(dataPath.getTargetName().c_str());
     vtkDataArray* dataArray = cellData->GetScalars(dataPath.getTargetName().c_str());
     std::array<double, 2> dataRange = {0.0, 1.0};
@@ -351,38 +396,44 @@ public:
     }
   }
 
+  NXVtkRenderViewObjects* renderObjects()
+  {
+    return &m_NxVtkRenderObjects;
+  }
+
 private:
   std::shared_ptr<DataStructure> m_DataStructure;
   NXVtkRenderViewObjects m_NxVtkRenderObjects;
   std::vector<NXVtkRenderPropertiesPtr> m_RenderProperties;
 };
 
-void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView)
+void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView, size_t geomIndex)
 {
-//  ImportStlFile(dataStructure);
-//
-//  std::string triangleGeometryName = "[Triangle Geometry]";
-//
-//  DataPath geometryPath = DataPath({k_LevelZero, triangleGeometryName});
-//  std::string triangleFaceDataGroupName = "Face Data";
-//  std::string triangleAreasName = "Triangle Areas";
-//
-//  DataPath triangleAreasDataPath = geometryPath.createChildPath(triangleFaceDataGroupName).createChildPath(triangleAreasName);
-//
-//  // Set the Cell Data of the ImageGeometry
-//  AbstractGeometry* geometry = dataStructure->getDataAs<AbstractGeometry>(geometryPath);
-//  geometry->getLinkedGeometryData().addFaceData(triangleAreasDataPath);
-//
-//  nxVtkRenderView.addGeometry(geometryPath);
-//  nxVtkRenderView.setActiveScalars(0, triangleAreasDataPath);
-//  nxVtkRenderView.setMapScalars(0, true);
+  ImportStlFile(dataStructure);
+
+  std::string triangleGeometryName = "[Triangle Geometry]";
+
+  DataPath geometryPath = DataPath({k_LevelZero, triangleGeometryName});
+  std::string triangleFaceDataGroupName = "Face Data";
+  std::string triangleAreasName = "Triangle Areas";
+
+  DataPath triangleAreasDataPath = geometryPath.createChildPath(triangleFaceDataGroupName).createChildPath(triangleAreasName);
+
+  // Set the Cell Data of the ImageGeometry
+  AbstractGeometry* geometry = dataStructure->getDataAs<AbstractGeometry>(geometryPath);
+  geometry->getLinkedGeometryData().addFaceData(triangleAreasDataPath);
+
+  nxVtkRenderView.addGeometry(geometryPath);
+//  nxVtkRenderView.setActiveScalars(geomIndex, triangleAreasDataPath);
+//  nxVtkRenderView.setMapScalars(geomIndex, true);
 }
 
-void CreateImageGeometry(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView)
+void CreateImageGeometry(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView,
+                         StringLiteral topLevel, FloatVec3& origin, size_t geoIndex)
 {
-  CreateEbsdTestDataStructure(dataStructure);
+  CreateEbsdTestDataStructure(dataStructure, topLevel);
 
-  DataPath smallIN100_DataPath = DataPath({k_SmallIN100});
+  DataPath smallIN100_DataPath = DataPath({topLevel});
   DataPath scanDataPath = smallIN100_DataPath.createChildPath(k_EbsdScanData);
   DataPath confidenceIndexDataPath = scanDataPath.createChildPath(k_ConfidenceIndex);
   DataPath featureIdsDataPath = scanDataPath.createChildPath(k_FeatureIds);
@@ -394,6 +445,8 @@ void CreateImageGeometry(std::shared_ptr<DataStructure>& dataStructure, NXVtkRen
 
   // Set the Cell Data of the ImageGeometry
   AbstractGeometry* geometry = dataStructure->getDataAs<AbstractGeometry>(scanDataImageGeomDataPath);
+  ImageGeom* imageGeom = dataStructure->getDataAs<ImageGeom>(scanDataImageGeomDataPath);
+  imageGeom->setOrigin(origin);
   geometry->getLinkedGeometryData().addCellData(confidenceIndexDataPath);
   geometry->getLinkedGeometryData().addCellData(featureIdsDataPath);
   geometry->getLinkedGeometryData().addCellData(imageQualityDataPath);
@@ -401,23 +454,30 @@ void CreateImageGeometry(std::shared_ptr<DataStructure>& dataStructure, NXVtkRen
   geometry->getLinkedGeometryData().addCellData(ipfColorsDataPath);
 
   nxVtkRenderView.addGeometry(scanDataImageGeomDataPath);
-  nxVtkRenderView.setActiveScalars(0, ipfColorsDataPath);
-  nxVtkRenderView.setMapScalars(0, false);
+  nxVtkRenderView.setActiveScalars(geoIndex, ipfColorsDataPath);
+  nxVtkRenderView.setMapScalars(geoIndex, false);
 }
 
 int main(int argc, char* argv[])
 {
   std::cout << "VtkDemo Starting... " << std::endl;
   std::shared_ptr<DataStructure> dataStructure = std::shared_ptr<DataStructure>(new DataStructure);
-
+  size_t geoIndex = 0;
   // Instantiate our VtkRendering Class
   NXVtkRenderView nxVtkRenderView(dataStructure);
   nxVtkRenderView.initRenderWindow();
+  FloatVec3 origin = {40.0F, 0.0F, 0.0F};
+  CreateImageGeometry(dataStructure, nxVtkRenderView, complex::Constants::k_SmallIN100, origin, geoIndex++);
 
-  CreateImageGeometry(dataStructure, nxVtkRenderView);
+  origin = {30.0F, 30.0F, 30.0F};
+  CreateImageGeometry(dataStructure, nxVtkRenderView, complex::Constants::k_SmallIN1002, origin, geoIndex);
 
-  //ImportStlFile(dataStructure, nxVtkRenderView);
+  ImportStlFile(dataStructure, nxVtkRenderView, geoIndex++);
 
+
+  auto actors = nxVtkRenderView.renderObjects()->renderer->GetActors();
+  std::cout << "There are " << actors->GetNumberOfItems() << " actors."
+            << std::endl;
 
   // This next line will start the interactive rendering and not return until the vtkWindow is closed.
   nxVtkRenderView.startRendering();
