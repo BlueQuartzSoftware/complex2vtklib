@@ -274,24 +274,24 @@ public:
     m_RenderProperties.push_back(renderProperties);
 #if 1
     vtkNew<vtkPolyDataWriter> polyDataWriter;
-    polyDataWriter->SetFileName("polydata.vtk");
+    std::string outputFileName = fmt::format("{}/polydata.vtk", complex::complex2vtk::k_BinaryDir);
+    std::cout << "Saving Vtk file to: " << outputFileName << std::endl;
+    polyDataWriter->SetFileName(outputFileName.c_str());
     polyDataWriter->SetFileTypeToASCII();
     polyDataWriter->SetInputData(polyData);
     polyDataWriter->Write();
-
 #endif
 
-    /*
-    complex::Point3Dd pCenter = complexNodeGeometry2D->getParametricCenter();
-    complex::BoundingBox<double> boundingBox = complexNodeGeometry2D->getBoundingBox();
-    std::array<double, 3> boxCenter = boundingBox.center();
-
-    vtkCamera* activeCamera = m_NxVtkRenderObjects.renderer->GetActiveCamera();
-    activeCamera->SetFocalPoint(boxCenter.data());
-    activeCamera->SetPosition(1.0, 0.0, 0.0 );
-    activeCamera->SetViewUp(0.0, 0.0, 1.0);
+//    complex::Point3Dd pCenter = complexNodeGeometry2D->getParametricCenter();
+//    complex::BoundingBox<double> boundingBox = complexNodeGeometry2D->getBoundingBox();
+//    std::array<double, 3> boxCenter = boundingBox.center();
+//
+//    vtkCamera* activeCamera = m_NxVtkRenderObjects.renderer->GetActiveCamera();
+//    activeCamera->SetFocalPoint(boxCenter.data());
+//    activeCamera->SetPosition(1.0, 0.0, 0.0 );
+//    activeCamera->SetViewUp(0.0, 0.0, 1.0);
     m_NxVtkRenderObjects.renderer->ResetCamera();
-    */
+
   }
 
 
@@ -366,14 +366,14 @@ public:
     m_NxVtkRenderObjects.renderer->AddActor(renderProperties->actor);
     m_RenderProperties.push_back(renderProperties);
 
-    complex::Point3Dd pCenter = complexImageGeom->getParametricCenter();
-    complex::BoundingBox<double> boundingBox = complexImageGeom->getBoundingBox();
-    std::array<double, 3> boxCenter = boundingBox.center();
-
-    vtkCamera* activeCamera = m_NxVtkRenderObjects.renderer->GetActiveCamera();
-    activeCamera->SetFocalPoint(boxCenter.data());
-    activeCamera->SetPosition(1.0, 0.0, 0.0 );
-    activeCamera->SetViewUp(0.0, 0.0, 1.0);
+//    complex::Point3Dd pCenter = complexImageGeom->getParametricCenter();
+//    complex::BoundingBox<double> boundingBox = complexImageGeom->getBoundingBox();
+//    std::array<double, 3> boxCenter = boundingBox.center();
+//
+//    vtkCamera* activeCamera = m_NxVtkRenderObjects.renderer->GetActiveCamera();
+//    activeCamera->SetFocalPoint(boxCenter.data());
+//    activeCamera->SetPosition(1.0, 0.0, 0.0 );
+//    activeCamera->SetViewUp(0.0, 0.0, 1.0);
     m_NxVtkRenderObjects.renderer->ResetCamera();
   }
 
@@ -417,7 +417,12 @@ private:
 
 void CreateTriangleGeometry(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView, size_t geomIndex)
 {
-  ImportStlFile(dataStructure);
+
+  std::string inputFile = fmt::format("{}Blade.stl", complex::complex2vtk::k_DataDir.str());
+  std::cout << "Loading STL File from: " << inputFile << std::endl;
+  //std::string inputFile = fmt::format("{}/ASTMD638_specimen.stl", unit_test::k_ComplexTestDataSourceDir.view());
+
+  ImportStlFile(dataStructure, inputFile);
 
   DataPath geometryPath = DataPath({k_TriangleGeometryName});
 

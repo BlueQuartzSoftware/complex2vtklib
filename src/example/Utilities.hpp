@@ -34,7 +34,7 @@ using namespace complex::Constants;
 
 
 
-void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure)
+void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure, const std::string& inputFile)
 {
 
   {
@@ -44,8 +44,6 @@ void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure)
     DataPath triangleGeomDataPath({k_TriangleGeometryName});
     DataPath triangleFaceDataGroupDataPath({k_TriangleGeometryName, k_FaceDataGroupName});
     DataPath normalsDataPath({k_TriangleGeometryName, k_FaceDataGroupName, k_NormalsLabels});
-
-    std::string inputFile = fmt::format("{}/Blade.stl", complex::complex2vtk::k_DataDir.str());
 
     // Create default Parameters for the filter.
     args.insertOrAssign(StlFileReaderFilter::k_StlFilePath_Key, std::make_any<FileSystemPathParameter::ValueType>(fs::path(inputFile)));

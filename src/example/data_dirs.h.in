@@ -16,7 +16,5 @@ constexpr StringLiteral k_BuildTypeDir = CMAKE_INTDIR;
 #else
 constexpr StringLiteral k_BuildTypeDir = "";
 #endif
-
-constexpr StringLiteral k_BuildDir = "@CMAKE_LIBRARY_OUTPUT_DIRECTORY@";
 }
 }
