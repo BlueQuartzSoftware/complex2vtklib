@@ -189,8 +189,8 @@ public:
     complex::UInt64DataStore* dataStore = complexFaceConnectivity->template getIDataStoreAs<DataStore<uint64_t>>();
 
     // This is ugly but about the only way to reuse the existing connectivity array
-    vtkNew<vtkLongArray> faceConnectivity;
-    faceConnectivity->SetArray(reinterpret_cast<long*>(dataStore->data()), complexFaceConnectivity->getSize(), 1);
+    vtkNew<vtkLongLongArray> faceConnectivity;
+    faceConnectivity->SetArray(reinterpret_cast<long long*>(dataStore->data()), complexFaceConnectivity->getSize(), 1);
 
     vtkNew<vtkCellArray> complexCellArray;
     complexCellArray->SetData(AbstractGeometry2DType::k_NumVerts, faceConnectivity);
@@ -274,7 +274,7 @@ public:
     m_RenderProperties.push_back(renderProperties);
 #if 1
     vtkNew<vtkPolyDataWriter> polyDataWriter;
-    polyDataWriter->SetFileName("/tmp/polydata.vtk");
+    polyDataWriter->SetFileName("polydata.vtk");
     polyDataWriter->SetFileTypeToASCII();
     polyDataWriter->SetInputData(polyData);
     polyDataWriter->Write();
