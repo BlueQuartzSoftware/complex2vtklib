@@ -29,18 +29,6 @@
 #include <iostream>
 #include <string>
 
-
-struct NXVtkRenderViewObjects
-{
-  vtkNew<vtkRenderWindow>                    renderWindow;
-  vtkNew<vtkRenderer>                        renderer;
-  vtkNew<vtkRenderWindowInteractor>          renderWindowInteractor;
-  vtkNew<vtkInteractorStyleTrackballCamera>  interactorStyle;
-  vtkNew<vtkNamedColors>                     backgroundColor;
-  vtkNew<vtkOrientationMarkerWidget>         orientationMarker;
-
-};
-
 struct NXVtkRenderProperties
 {
   std::shared_ptr<complex::DataObject>        complexGeometry;
@@ -53,6 +41,18 @@ struct NXVtkRenderProperties
   vtkSmartPointer<vtkLookupTable>             pointColors;
 
 };
+
+struct NXVtkRenderViewObjects
+{
+  vtkNew<vtkRenderWindow>                    renderWindow;
+  vtkNew<vtkRenderer>                        renderer;
+  vtkNew<vtkRenderWindowInteractor>          renderWindowInteractor;
+  vtkNew<vtkInteractorStyleTrackballCamera>  interactorStyle;
+  vtkNew<vtkNamedColors>                     backgroundColor;
+  vtkNew<vtkOrientationMarkerWidget>         orientationMarker;
+};
+
+
 
 using NXVtkRenderPropertiesPtr = std::shared_ptr<NXVtkRenderProperties>;
 
@@ -415,17 +415,13 @@ private:
   std::vector<NXVtkRenderPropertiesPtr> m_RenderProperties;
 };
 
-void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView, size_t geomIndex)
+void CreateTriangleGeometry(std::shared_ptr<DataStructure>& dataStructure, NXVtkRenderView& nxVtkRenderView, size_t geomIndex)
 {
   ImportStlFile(dataStructure);
 
-  std::string triangleGeometryName = "[Triangle Geometry]";
+  DataPath geometryPath = DataPath({k_TriangleGeometryName});
 
-  DataPath geometryPath = DataPath({k_LevelZero, triangleGeometryName});
-  std::string triangleFaceDataGroupName = "Face Data";
-  std::string triangleAreasName = "Triangle Areas";
-
-  DataPath triangleAreasDataPath = geometryPath.createChildPath(triangleFaceDataGroupName).createChildPath(triangleAreasName);
+  DataPath triangleAreasDataPath = geometryPath.createChildPath(k_FaceDataGroupName).createChildPath(k_TriangleAreas);
 
   // Set the Cell Data of the ImageGeometry
   AbstractGeometry* geometry = dataStructure->getDataAs<AbstractGeometry>(geometryPath);
@@ -480,7 +476,7 @@ int main(int argc, char* argv[])
   origin = {30.0F, 30.0F, 30.0F};
   CreateImageGeometry(dataStructure, nxVtkRenderView, complex::Constants::k_SmallIN1002, origin, geoIndex++);
 
-  ImportStlFile(dataStructure, nxVtkRenderView, geoIndex++);
+  CreateTriangleGeometry(dataStructure, nxVtkRenderView, geoIndex++);
 
 
   // This next line will start the interactive rendering and not return until the vtkWindow is closed.

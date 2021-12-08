@@ -12,7 +12,7 @@
 #include "complex/DataStructure/Geometry/TriangleGeom.hpp"
 #include "complex/Parameters/ArrayCreationParameter.hpp"
 #include "complex/Parameters/FileSystemPathParameter.hpp"
-
+#include "complex/Utilities/Parsing/HDF5/H5FileWriter.hpp"
 
 #include "ComplexCore/Filters/CalculateTriangleAreasFilter.hpp"
 #include "ComplexCore/Filters/StlFileReaderFilter.hpp"
@@ -33,58 +33,66 @@ using namespace complex::UnitTest;
 using namespace complex::Constants;
 
 
+
 void ImportStlFile(std::shared_ptr<DataStructure>& dataStructure)
 {
-  std::string triangleGeometryName = "[Triangle Geometry]";
-  std::string triangleFaceDataGroupName = "Face Data";
-  std::string normalsDataArrayName = "Normals";
 
-  DataStructure& dataGraph = *dataStructure;
   {
-    StlFileReaderFilter filter;
     Arguments args;
+    StlFileReaderFilter filter;
 
-    DataGroup::Create(dataGraph, k_LevelZero);
-
-    DataPath parentPath = DataPath({k_LevelZero});
-
-    DataPath normalsDataPath = parentPath.createChildPath(triangleGeometryName).createChildPath(triangleFaceDataGroupName).createChildPath(normalsDataArrayName);
+    DataPath triangleGeomDataPath({k_TriangleGeometryName});
+    DataPath triangleFaceDataGroupDataPath({k_TriangleGeometryName, k_FaceDataGroupName});
+    DataPath normalsDataPath({k_TriangleGeometryName, k_FaceDataGroupName, k_NormalsLabels});
 
     std::string inputFile = fmt::format("{}/Blade.stl", complex::complex2vtk::k_DataDir.str());
 
     // Create default Parameters for the filter.
     args.insertOrAssign(StlFileReaderFilter::k_StlFilePath_Key, std::make_any<FileSystemPathParameter::ValueType>(fs::path(inputFile)));
-    args.insertOrAssign(StlFileReaderFilter::k_GeometryDataPath_Key, std::make_any<DataPath>({triangleGeometryName}));
-    args.insertOrAssign(StlFileReaderFilter::k_FaceGroupDataPath_Key, std::make_any<DataPath>({triangleFaceDataGroupName}));
+    args.insertOrAssign(StlFileReaderFilter::k_GeometryDataPath_Key, std::make_any<DataPath>(triangleGeomDataPath));
+    args.insertOrAssign(StlFileReaderFilter::k_FaceGroupDataPath_Key, std::make_any<DataPath>(triangleFaceDataGroupDataPath));
     args.insertOrAssign(StlFileReaderFilter::k_FaceNormalsDataPath_Key, std::make_any<DataPath>(normalsDataPath));
 
     // Preflight the filter and check result
-    auto preflightResult = filter.preflight(dataGraph, args);
+    auto preflightResult = filter.preflight(*dataStructure, args);
 
     // Execute the filter and check the result
-    auto executeResult = filter.execute(dataGraph, args);
+    auto executeResult = filter.execute(*dataStructure, args);
 
-    TriangleGeom& triangleGeom = dataGraph.getDataRefAs<TriangleGeom>(parentPath.createChildPath(triangleGeometryName));
+    TriangleGeom& triangleGeom = dataStructure->getDataRefAs<TriangleGeom>(triangleGeomDataPath);
   }
 
   {
     CalculateTriangleAreasFilter filter;
     Arguments args;
-    std::string triangleAreasName = "Triangle Areas";
 
-    DataPath geometryPath = DataPath({k_LevelZero, triangleGeometryName});
+    DataPath geometryPath = DataPath({k_TriangleGeometryName});
 
     // Create default Parameters for the filter.
-    DataPath triangleAreasDataPath = geometryPath.createChildPath(triangleFaceDataGroupName).createChildPath(triangleAreasName);
+    DataPath triangleAreasDataPath = geometryPath.createChildPath(k_FaceDataGroupName).createChildPath(k_TriangleAreas);
     args.insertOrAssign(CalculateTriangleAreasFilter::k_TriangleGeometryDataPath_Key, std::make_any<DataPath>(geometryPath));
     args.insertOrAssign(CalculateTriangleAreasFilter::k_CalculatedAreasDataPath_Key, std::make_any<DataPath>(triangleAreasDataPath));
 
     // Preflight the filter and check result
-    auto preflightResult = filter.preflight(dataGraph, args);
+    auto preflightResult = filter.preflight(*dataStructure, args);
 
     // Execute the filter and check the result
-    auto executeResult = filter.execute(dataGraph, args);
+    auto executeResult = filter.execute(*dataStructure, args);
+
+    // Let's sum up all the areas.
+    Float64Array& faceAreas = dataStructure->getDataRefAs<Float64Array>(triangleAreasDataPath);
+    double sumOfAreas = 0.0;
+    for(const auto& area : faceAreas)
+    {
+      sumOfAreas += area;
+    }
   }
+
+  Result<H5::FileWriter> result = H5::FileWriter::CreateFile(fmt::format("/tmp/TriangleAreas.dream3d"));
+  H5::FileWriter fileWriter = std::move(result.value());
+
+  herr_t err = dataStructure->writeHdf5(fileWriter);
+
 }
 
 
