@@ -94,7 +94,6 @@ public:
     m_NxVtkRenderObjects.orientationMarker->SetInteractor(m_NxVtkRenderObjects.renderWindowInteractor);
     m_NxVtkRenderObjects.orientationMarker->SetViewport(0.0, 0.0, 0.4, 0.4);
     m_NxVtkRenderObjects.orientationMarker->SetEnabled(1);
-
   }
 
 
@@ -108,52 +107,54 @@ public:
     std::shared_ptr<complex::DataObject> dataObjectShrdPtr = m_DataStructure->getSharedDataAs<complex::DataObject>(geometryPath);
     if(dataObjectShrdPtr != nullptr)
     {
-      complex::DataObject::DataObjectType dataObjectType = dataObjectShrdPtr->getDataObjectType();
+      complex::DataObject::Type dataObjectType = dataObjectShrdPtr->getDataObjectType();
       switch(dataObjectType)
       {
-      case complex::DataObject::DataObjectType::ImageGeom:
+      case complex::DataObject::Type::ImageGeom:
         addImageGeometry(dataObjectShrdPtr);
         break;
-      case DataObject::DataObjectType::DataObject:
+      case DataObject::Type::DataObject:
         break;
-      case DataObject::DataObjectType::DynamicListArray:
+      case DataObject::Type::DynamicListArray:
         break;
-      case DataObject::DataObjectType::ScalarData:
+      case DataObject::Type::ScalarData:
         break;
-      case DataObject::DataObjectType::BaseGroup:
+      case DataObject::Type::BaseGroup:
         break;
-      case DataObject::DataObjectType::AbstractMontage:
+      case DataObject::Type::AbstractMontage:
         break;
-      case DataObject::DataObjectType::DataGroup:
+      case DataObject::Type::DataGroup:
         break;
-      case DataObject::DataObjectType::IDataArray:
+      case DataObject::Type::IDataArray:
         break;
-      case DataObject::DataObjectType::DataArray:
+      case DataObject::Type::DataArray:
         break;
-      case DataObject::DataObjectType::AbstractGeometry:
+      case DataObject::Type::AbstractGeometry:
         break;
-      case DataObject::DataObjectType::VertexGeom:
+      case DataObject::Type::VertexGeom:
         break;
-      case DataObject::DataObjectType::EdgeGeom:
+      case DataObject::Type::EdgeGeom:
         break;
-      case DataObject::DataObjectType::AbstractGeometryGrid:
+      case DataObject::Type::AbstractGeometryGrid:
         break;
-      case DataObject::DataObjectType::RectGridGeom:
+      case DataObject::Type::RectGridGeom:
         break;
-      case DataObject::DataObjectType::AbstractGeometry2D:
+      case DataObject::Type::AbstractGeometry2D:
         break;
-      case DataObject::DataObjectType::QuadGeom:
+      case DataObject::Type::QuadGeom:
         break;
-      case DataObject::DataObjectType::TriangleGeom:
+      case DataObject::Type::TriangleGeom:
         addAbstractGeometry2D<complex::TriangleGeom>(dataObjectShrdPtr);
         break;
-      case DataObject::DataObjectType::AbstractGeometry3D:
+      case DataObject::Type::AbstractGeometry3D:
         break;
-      case DataObject::DataObjectType::HexahedralGeom:
+      case DataObject::Type::HexahedralGeom:
         break;
-      case DataObject::DataObjectType::TetrahedralGeom:
+      case DataObject::Type::TetrahedralGeom:
         break;
-      case DataObject::DataObjectType::Unknown:
+      case DataObject::Type::Unknown:
+        break;
+      case DataObject::Type::Any:
         break;
       }
     }
@@ -483,6 +484,10 @@ int main(int argc, char* argv[])
 
   CreateTriangleGeometry(dataStructure, nxVtkRenderView, geoIndex++);
 
+  Result<H5::FileWriter> result = H5::FileWriter::CreateFile(fmt::format("/tmp/MultipleGeometry.dream3d"));
+  H5::FileWriter fileWriter = std::move(result.value());
+
+  herr_t err = dataStructure->writeHdf5(fileWriter);
 
   // This next line will start the interactive rendering and not return until the vtkWindow is closed.
   nxVtkRenderView.startRendering();
