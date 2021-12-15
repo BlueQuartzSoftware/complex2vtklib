@@ -22,7 +22,8 @@ template <class T>
 class Array : public vtkGenericDataArray<CV::Array<T>, T>
 {
 public:
-  using ComplexArrayPtr = std::shared_ptr<complex::DataArray<T>>;
+  using ComplexArrayType = complex::DataArray<T>;
+  using ComplexArrayPointerType = std::shared_ptr<ComplexArrayType>;
   using ValueType = T;
   using Superclass2 = vtkGenericDataArray<CV::Array<T>, T>;
 
@@ -30,11 +31,18 @@ public:
 
   static inline const std::string MissingArrayName = "[Missing Array]";
 
+  /**
+   * @brief Creates a new instance of CV::Array. This is required of vtkObject derived classes
+   * @return
+   */
   static CV::Array<T>* New()
   {
     return new CV::Array<T>();
   }
 
+  /**
+   * @brief
+   */
   Array()
   : Superclass()
   , m_DataArray(nullptr)
@@ -42,16 +50,29 @@ public:
     SetComplexArray(nullptr);
   }
 
-  Array(const ComplexArrayPtr& dataArr)
+  /**
+   * @brief
+   * @param dataArr
+   */
+  Array(const ComplexArrayPointerType& dataArr)
   : Superclass()
   , m_DataArray(dataArr)
   {
     SetComplexArray(dataArr);
   }
 
+  Array(const Array&) = delete;
+  Array(Array&&) noexcept = delete;
+  Array& operator=(const Array&) = delete;
+  Array& operator=(Array&&) noexcept = delete;
+
   virtual ~Array() = default;
 
-  void SetComplexArray(const ComplexArrayPtr& dataArray)
+  /**
+   * @brief
+   * @param dataArray
+   */
+  void SetComplexArray(const ComplexArrayPointerType& dataArray)
   {
     m_DataArray = dataArray;
     if(dataArray == nullptr)
@@ -82,8 +103,12 @@ public:
   }
 
   /**
-   * @brief Returns the value for the given ID.
-   * @param valueIdx
+   * @brief Get the value at valueIdx.
+   *
+   * Note: GetTypedComponent is preferred over this method. It is faster for SOA arrays,
+   * and shows equivalent performance for AOS arrays when NumberOfComponents is known
+   * to the compiler (See vtkAssume.h).
+   * @param valueIdx assumes AOS ordering.
    * @return T
    */
   inline ValueType GetValue(vtkIdType valueIdx) const
@@ -96,8 +121,11 @@ public:
   }
 
   /**
-   * @brief Sets the value for the given ID.
-   * @param valueIdx
+   * @brief Set the value at valueIdx to value.
+   *
+   * Note: SetTypedComponent is preferred over this method. It is faster for SOA arrays, and shows equivalent performance for
+   *  AOS arrays when NumberOfComponents is known to the compiler (See vtkAssume.h).
+   * @param valueIdx assumes AOS ordering.
    * @param value
    */
   inline void SetValue(vtkIdType valueIdx, ValueType value)
@@ -110,7 +138,10 @@ public:
   }
 
   /**
-   * @brief Copies the tuple pointer for the given index.
+   * @brief Copy the tuple at tupleIdx into tuple.
+   *
+   * Note:GetTypedComponent is preferred over this method. The overhead of copying the tuple is significant compared to the
+   *    more performant component-wise access methods, which typically optimize to raw memory access.
    * @param tupleIdx
    * @param tuple
    */
@@ -125,12 +156,16 @@ public:
     const size_t elementIndex = tupleIdx * numComps;
     for(size_t i = 0; i < numComps; i++)
     {
-      tuple[i] = dataStore->getValue(elementIndex + i);
+      tuple[i] = (*dataStore)[elementIndex + i];
     }
   }
 
   /**
-   * @brief Sets the tuple pointer for the given index.
+   * @brief Set this array's tuple at tupleIdx to the values in tuple.
+   *
+   * Note: SetTypedComponent is preferred over this method. The overhead of copying
+   * the tuple is significant compared to the more performant component-wise access
+   * methods, which typically optimize to raw memory access.
    * @param tupleIdx
    * @param tuple
    */
@@ -140,18 +175,17 @@ public:
     {
       throw std::runtime_error("CV::Array::SetTypedTuple() does not have an underlying complex::DataArray");
     }
-
     auto dataStore = m_DataArray->getDataStore();
     const size_t numComps = dataStore->getNumberOfComponents();
     const size_t elementIndex = tupleIdx * numComps;
     for(size_t i = 0; i < numComps; i++)
     {
-      dataStore->setValue(elementIndex + i, tuple[i]);
+      (*dataStore)[elementIndex + i] = tuple[i];
     }
   }
 
   /**
-   * @brief Returns the component specified by tuple and component ID.
+   * @brief Get component compIdx of the tuple at tupleIdx. This is typically the fastest way to access array data.
    * @param tupleIdx
    * @param compIdx
    * @return T
@@ -164,11 +198,12 @@ public:
     }
     const auto elementIndex = tupleIdx * this->NumberOfComponents;
     ValueType value = (*m_DataArray)[elementIndex + compIdx];
+    //   std::cout << " * GetTypedComponent() " << tupleIdx << ":" << compIdx  << " = " << value << std::endl;
     return value;
   }
 
   /**
-   * @brief Sets the component specified by tuple and component ID.
+   * @brief Set component compIdx of the tuple at tupleIdx to value. This is typically the fastest way to set array data.
    * @param tupleIdx
    * @param compIdx
    * @param value
@@ -184,41 +219,64 @@ public:
   }
 
   /**
-   * @brief Allocates space for a given number of tuples. Old data should not
-   * be preserved.
+   * @brief Allocates space for a given number of tuples. Old data should *NOT* be preserved.
+   * If numTuples == 0, all data is freed.
    * @param numTuples
    * @return bool
    */
   inline bool AllocateTuples(vtkIdType numTuples)
   {
-    throw std::runtime_error("CV::Array::AllocateTuples() does not have an underlying complex::DataArray");
-
+    // If the underlying m_DataArray is null then we are hosed... just return false but VTK is going to die quickly after this.
     if(m_DataArray == nullptr)
     {
       return false;
     }
 
-    //m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
+    // If there is no difference in size, then just return true
+    if(m_DataArray->getNumberOfTuples() == numTuples)
+    {
+      return true;
+    }
+
+    // Now swap the vtkDataArrays
+    m_DataArray = createNewDataArray(numTuples);
+
+    // Now update the vtkGenericDataArray internal values
+    this->NumberOfComponents = m_DataArray->getNumberOfComponents();
+    this->Size = m_DataArray->getNumberOfTuples() * this->NumberOfComponents;
+    this->MaxId = this->Size - 1;
+
     return true;
   }
 
   /**
-   * @brief Allocates space for a given number of tuples.  Old data should be
-   * preserved.
+   * @brief Allocates space for a given number of tuples.  Old data *WILL* be preserved.
+   * If numTuples == 0, all data is freed.
    * @param numTuples
    * @return bool
    */
   inline bool ReallocateTuples(vtkIdType numTuples)
   {
-    //throw std::runtime_error("CV::Array::ReallocateTuples() does not have an underlying complex::DataArray");
-
     if(m_DataArray == nullptr)
     {
-      return false;
+      throw std::runtime_error("CV::Array::ReallocateTuples() does not have an underlying complex::DataArray");
     }
 
+    // Now swap the vtkDataArrays
+    ComplexArrayPointerType copyOfDataArrayPtr = createNewDataArray(numTuples);
+
+    // Copy the previous data over to the new underlying array. This could be done faster possibly.
+    for(size_t idx = 0; idx < numTuples; idx++)
+    {
+      (*copyOfDataArrayPtr.get())[idx] = (*m_DataArray)[idx];
+    }
+
+    // Now swap the vtkDataArrays
+    m_DataArray = copyOfDataArrayPtr;
+
+    // Now update the vtkGenericDataArray internal values
     this->NumberOfComponents = m_DataArray->getNumberOfComponents();
-    this->Size =numTuples * this->NumberOfComponents;
+    this->Size = numTuples * this->NumberOfComponents;
     this->MaxId = this->Size - 1;
 
     return true;
@@ -237,10 +295,32 @@ public:
 protected:
   vtkObjectBase* NewInstanceInternal() const override
   {
-    return new Array(m_DataArray);
+    ComplexArrayPointerType copyOfDataArrayPtr = createNewDataArray(0);
+    return new Array(copyOfDataArrayPtr);
   }
 
 private:
-  ComplexArrayPtr m_DataArray;
+  ComplexArrayPointerType m_DataArray;
+
+  /**
+   * @brief Creates and returns a new DataArray<T> with a new DataStore<T>
+   * @param numTuples The number of tuples to create in the DataStore<T>.
+   * @return
+   */
+  ComplexArrayPointerType createNewDataArray(vtkIdType numTuples) const
+  {
+    // Create a brand-new instance of DataArray<T> with its own underlying DataStore of the same
+    // type as the original DataArray<T> instance
+    using DataStoreType = complex::DataStore<T>;
+    using SharedDataStoreType = std::shared_ptr<DataStoreType>;
+    std::shared_ptr<complex::DataStore<T>> dataStore = SharedDataStoreType(new DataStoreType({static_cast<size_t>(numTuples)}, {static_cast<size_t>(this->NumberOfComponents)}));
+    // Shallow Copy from the previous DataArray to get an instance of DataArray
+    ComplexArrayType* copyOfDataArray = dynamic_cast<ComplexArrayType*>(m_DataArray->shallowCopy());
+    ComplexArrayPointerType copyOfDataArrayPtr = std::shared_ptr<ComplexArrayType>(copyOfDataArray);
+    // Set the newly created DataStore into the just created DataArray, replacing its DataStore with this new one.
+    copyOfDataArrayPtr->setDataStore(dataStore);
+
+    return copyOfDataArrayPtr;
+  }
 };
 } // namespace CV
