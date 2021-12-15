@@ -61,8 +61,9 @@ public:
     else
     {
       SetName(dataArray->getName().c_str());
-      Superclass::SetNumberOfComponents(m_DataArray->getNumberOfComponents());
-      Superclass::SetNumberOfTuples(m_DataArray->getNumberOfTuples());
+      this->NumberOfComponents = m_DataArray->getNumberOfComponents();
+      this->Size = m_DataArray->getNumberOfTuples() * this->NumberOfComponents;
+      this->MaxId = this->Size - 1;
     }
   }
 
@@ -73,10 +74,11 @@ public:
   void SetName(const char* name) override
   {
     Superclass::SetName(name);
-    if(m_DataArray != nullptr)
+    if(nullptr == m_DataArray)
     {
-      m_DataArray->rename(name);
+      throw std::runtime_error("CV::Array::SetName() does not have an underlying complex::DataArray");
     }
+    m_DataArray->rename(name);
   }
 
   /**
@@ -86,11 +88,11 @@ public:
    */
   inline ValueType GetValue(vtkIdType valueIdx) const
   {
-    if(!m_DataArray)
+    if(nullptr == m_DataArray)
     {
-      return {};
+      throw std::runtime_error("CV::Array::GetValue() does not have an underlying complex::DataArray");
     }
-    return m_DataArray->at(valueIdx);
+    return (*m_DataArray)[valueIdx];
   }
 
   /**
@@ -100,11 +102,10 @@ public:
    */
   inline void SetValue(vtkIdType valueIdx, ValueType value)
   {
-    if(!m_DataArray)
+    if(nullptr == m_DataArray)
     {
-      return;
+      throw std::runtime_error("CV::Array::SetValue() does not have an underlying complex::DataArray");
     }
-
     (*m_DataArray)[valueIdx] = value;
   }
 
@@ -115,18 +116,16 @@ public:
    */
   inline void GetTypedTuple(vtkIdType tupleIdx, ValueType* tuple) const
   {
-    if(!m_DataArray)
+    if(nullptr == m_DataArray)
     {
-      tuple = nullptr;
-      return;
+      throw std::runtime_error("CV::Array::GetTypedTuple() does not have an underlying complex::DataArray");
     }
-
     auto dataStore = m_DataArray->getDataStore();
     const size_t numComps = dataStore->getNumberOfComponents();
-    const size_t tupleIndex = numComps * tupleIdx;
+    const size_t elementIndex = tupleIdx * numComps;
     for(size_t i = 0; i < numComps; i++)
     {
-      tuple[i] = dataStore->getValue(tupleIndex + i);
+      tuple[i] = dataStore->getValue(elementIndex + i);
     }
   }
 
@@ -137,17 +136,17 @@ public:
    */
   inline void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
   {
-    if(!m_DataArray)
+    if(nullptr == m_DataArray)
     {
-      return;
+      throw std::runtime_error("CV::Array::SetTypedTuple() does not have an underlying complex::DataArray");
     }
 
     auto dataStore = m_DataArray->getDataStore();
     const size_t numComps = dataStore->getNumberOfComponents();
-    const size_t tupleIndex = numComps * tupleIdx;
+    const size_t elementIndex = tupleIdx * numComps;
     for(size_t i = 0; i < numComps; i++)
     {
-      dataStore->setValue(tupleIndex + i, tuple[i]);
+      dataStore->setValue(elementIndex + i, tuple[i]);
     }
   }
 
@@ -159,15 +158,13 @@ public:
    */
   inline ValueType GetTypedComponent(vtkIdType tupleIdx, int compIdx) const
   {
-    if(!m_DataArray)
+    if(nullptr == m_DataArray)
     {
-      return {};
+      throw std::runtime_error("CV::Array::GetTypedComponent() does not have an underlying complex::DataArray");
     }
-
-    //m_DataArray->
-    const auto tupleSize = m_DataArray->getNumberOfComponents();
-    const auto tuplePos = tupleSize * tupleIdx;
-    return m_DataArray->at(tuplePos + compIdx);
+    const auto elementIndex = tupleIdx * this->NumberOfComponents;
+    ValueType value = (*m_DataArray)[elementIndex + compIdx];
+    return value;
   }
 
   /**
@@ -178,14 +175,12 @@ public:
    */
   inline void SetTypedComponent(vtkIdType tupleIdx, int compIdx, ValueType value)
   {
-    if(!m_DataArray)
+    if(nullptr == m_DataArray)
     {
-      return;
+      throw std::runtime_error("CV::Array::SetTypedComponent() does not have an underlying complex::DataArray");
     }
-
-    const auto tupleSize = m_DataArray->getNumberOfComponents();
-    const auto tuplePos = tupleSize * tupleIdx;
-    (*m_DataArray)[tuplePos + compIdx] = value;
+    const auto elementIndex = tupleIdx * this->NumberOfComponents;
+    (*m_DataArray)[elementIndex + compIdx] = value;
   }
 
   /**
@@ -196,6 +191,8 @@ public:
    */
   inline bool AllocateTuples(vtkIdType numTuples)
   {
+    throw std::runtime_error("CV::Array::AllocateTuples() does not have an underlying complex::DataArray");
+
     if(m_DataArray == nullptr)
     {
       return false;
@@ -213,12 +210,17 @@ public:
    */
   inline bool ReallocateTuples(vtkIdType numTuples)
   {
+    //throw std::runtime_error("CV::Array::ReallocateTuples() does not have an underlying complex::DataArray");
+
     if(m_DataArray == nullptr)
     {
       return false;
     }
 
-    //m_DataArray->getDataStore()->reshapeTuples({static_cast<size_t>(numTuples)});
+    this->NumberOfComponents = m_DataArray->getNumberOfComponents();
+    this->Size =numTuples * this->NumberOfComponents;
+    this->MaxId = this->Size - 1;
+
     return true;
   }
 
