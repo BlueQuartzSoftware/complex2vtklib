@@ -60,6 +60,9 @@ set(C2V_VtkComponents
   FiltersGeometry
   FiltersSources
   FiltersStatistics
+  FiltersCore
+  FiltersModeling
+  IOImage
   ParallelDIY
   ImagingSources
   InteractionStyle
