@@ -19,8 +19,6 @@ function(AddVtkCopyInstallRules)
     endif()
   endif()
 
-  # message(STATUS "vtk_LIBS: ${vtk_LIBS}")
-
   set(vtk_INSTALL_DIR "lib")
   if(WIN32)
     set(vtk_INSTALL_DIR ".")
@@ -28,6 +26,10 @@ function(AddVtkCopyInstallRules)
 
   set(vtk_module_library_list "")
 
+  #----------------------------------------------------------------------------
+  # This First loop is all about finding every vtkLibrary that would need to
+  # be copied into the install directory and appending those to a list
+  #----------------------------------------------------------------------------
   foreach(vtk_module ${vtk_LIBS})
     foreach(BTYPE ${vtk_BUILD_TYPES} )
       string(TOUPPER ${BTYPE} UpperBType)
@@ -61,6 +63,12 @@ function(AddVtkCopyInstallRules)
     endforeach(BTYPE ${vtk_BUILD_TYPES} )
   endforeach(vtk_module ${vtk_LIBS})
 
+  #----------------------------------------------------------------------------
+  # This second loop will actually generate the copy and install rules. It will
+  # generate a custom target to copy each DLL into the current binary directory
+  # so that the application will run. This is really only needed on non-MacOS
+  # platforms.
+  #----------------------------------------------------------------------------
   #message(STATUS "VTK: Generating Install Rules")
   foreach(vtk_module_target_name ${vtk_module_library_list})
     foreach(BTYPE ${vtk_BUILD_TYPES} )
