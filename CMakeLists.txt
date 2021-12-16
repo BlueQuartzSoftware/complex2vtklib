@@ -49,8 +49,9 @@ else()
   )
 endif()
 
-# -------------------------------------------
+#------------------------------------------------------------------------------
 # Find VTK
+#------------------------------------------------------------------------------
 set(C2V_VtkComponents
   CommonColor
   CommonCore
@@ -58,6 +59,8 @@ set(C2V_VtkComponents
   CommonTransforms
   FiltersGeometry
   FiltersSources
+  FiltersStatistics
+  ParallelDIY
   ImagingSources
   InteractionStyle
   InteractionWidgets
@@ -68,6 +71,8 @@ set(C2V_VtkComponents
   RenderingGL2PSOpenGL2
   RenderingOpenGL2
   IOLegacy
+  GUISupportQt
+  GUISupportQtQuick
   CACHE INTERNAL "VTK Components for complex2VtkLib" FORCE
 )
 find_package(VTK "9.1" COMPONENTS ${C2V_VtkComponents} CONFIG REQUIRED)
@@ -194,7 +199,7 @@ add_executable(BridgeTest MACOSX_BUNDLE
     ${complex2VtkLib_SOURCE_DIR}/src/example/BridgeTest.cpp
     ${complex2VtkLib_BINARY_DIR}/data_dirs.h
   )
-target_link_libraries(BridgeTest PRIVATE ${VTK_LIBRARIES} complex2VtkLib ComplexCore complex::UnitTestCommon)
+target_link_libraries(BridgeTest PRIVATE ${VTK_LIBRARIES} complex2VtkLib ComplexCore fmt::fmt complex::UnitTestCommon)
 target_include_directories(BridgeTest PRIVATE ${complex2VtkLib_BINARY_DIR})
 # vtk_module_autoinit is needed
 vtk_module_autoinit(
@@ -209,7 +214,7 @@ add_executable(VtkDemo MACOSX_BUNDLE
   ${complex2VtkLib_SOURCE_DIR}/src/example/Utilities.hpp
   ${complex2VtkLib_BINARY_DIR}/data_dirs.h
   )
-target_link_libraries(VtkDemo PRIVATE ${VTK_LIBRARIES} complex2VtkLib ComplexCore complex::UnitTestCommon)
+target_link_libraries(VtkDemo PRIVATE ${VTK_LIBRARIES} complex2VtkLib ComplexCore fmt::fmt complex::UnitTestCommon)
 target_include_directories(VtkDemo PRIVATE ${complex2VtkLib_BINARY_DIR})
 # vtk_module_autoinit is needed
 vtk_module_autoinit(

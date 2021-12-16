@@ -275,8 +275,8 @@ public:
     m_RenderProperties.push_back(renderProperties);
 #if 1
     vtkNew<vtkPolyDataWriter> polyDataWriter;
-    std::string outputFileName = fmt::format("{}/polydata.vtk", complex::complex2vtk::k_BinaryDir);
-    std::cout << "Saving Vtk file to: " << outputFileName << std::endl;
+    std::string outputFileName = complex::complex2vtk::k_BinaryDir.str() + "/polydata.vtk";
+    //std::cout << "Saving Vtk file to: " << outputFileName << std::endl;
     polyDataWriter->SetFileName(outputFileName.c_str());
     polyDataWriter->SetFileTypeToASCII();
     polyDataWriter->SetInputData(polyData);
