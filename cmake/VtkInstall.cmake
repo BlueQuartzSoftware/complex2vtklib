@@ -7,9 +7,12 @@ function(AddVtkCopyInstallRules)
   set(oneValueArgs )
   set(multiValueArgs LIBS)
   cmake_parse_arguments(vtk "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
+
+  if(APPLE)
+    return()
+  endif()
+
   set(INTER_DIR ".")
-
-
   if(MSVC_IDE)
     set(vtk_BUILD_TYPES Debug Release)
   else()

@@ -79,6 +79,7 @@ set(C2V_VtkComponents
   CACHE INTERNAL "VTK Components for complex2VtkLib" FORCE
 )
 find_package(VTK "9.1" COMPONENTS ${C2V_VtkComponents} CONFIG REQUIRED)
+set_property(GLOBAL PROPERTY VTK_PREFIX_PATH ${VTK_PREFIX_PATH})
 AddVtkCopyInstallRules(LIBS ${C2V_VtkComponents})
 
 
