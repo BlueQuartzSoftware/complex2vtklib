@@ -119,20 +119,20 @@ void CreateEbsdTestDataStructure(std::shared_ptr<DataStructure>& dataGraph, Stri
   std::string filePath = complex::complex2vtk::k_DataDir.str() + "/";
 
   std::string fileName = "ConfidenceIndex.raw";
-  complex::ImportFromBinaryFile<float>(filePath + fileName, k_ConfidenceIndex, dataGraph.get(), tupleDims, compDims, scanData->getId());
+  complex::ImportFromBinaryFile<float>(filePath + fileName, k_ConfidenceIndex, *dataGraph, tupleDims, compDims, scanData->getId());
 
   fileName = "FeatureIds.raw";
-  complex::ImportFromBinaryFile<int32_t>(filePath + fileName, k_FeatureIds, dataGraph.get(), tupleDims, compDims, scanData->getId());
+  complex::ImportFromBinaryFile<int32_t>(filePath + fileName, k_FeatureIds, *dataGraph, tupleDims, compDims, scanData->getId());
 
   fileName = "ImageQuality.raw";
-  complex::ImportFromBinaryFile<float>(filePath + fileName, k_ImageQuality, dataGraph.get(), tupleDims, compDims, scanData->getId());
+  complex::ImportFromBinaryFile<float>(filePath + fileName, k_ImageQuality, *dataGraph, tupleDims, compDims, scanData->getId());
 
   fileName = "Phases.raw";
-  complex::ImportFromBinaryFile<int32_t>(filePath + fileName, k_Phases, dataGraph.get(), tupleDims, compDims, scanData->getId());
+  complex::ImportFromBinaryFile<int32_t>(filePath + fileName, k_Phases, *dataGraph, tupleDims, compDims, scanData->getId());
 
   fileName = "IPFColors.raw";
   compDims = {3};
-  complex::ImportFromBinaryFile<uint8_t>(filePath + fileName, k_IpfColors, dataGraph.get(), tupleDims, compDims, scanData->getId());
+  complex::ImportFromBinaryFile<uint8_t>(filePath + fileName, k_IpfColors, *dataGraph, tupleDims, compDims, scanData->getId());
 
   // Add in another group that is just information about the grid data.
   DataGroup* phaseGroup = complex::DataGroup::Create(*dataGraph, k_PhaseData, group->getId());
